@@ -4,10 +4,10 @@
 (* Base refinement for the car alarm system                                *)
 (***************************************************************************)
 
-CONSTANT openAndUnlocked, closedAndLocked
-ASSUME openAndUnlocked /= closedAndLocked
+OpenAndUnlocked   == 0
+ClosedAndLocked   == 1
 
-STATES == {openAndUnlocked, closedAndLocked}
+STATES == {OpenAndUnlocked, ClosedAndLocked}
 
 VARIABLES state
 
@@ -16,27 +16,24 @@ VARIABLES state
 (***************************************************************************)
 
 TypeInvariant == state \in STATES
-
-SafetyInvariant == \/ state = openAndUnlocked
-                   \/ state = closedAndLocked
                  
 (***************************************************************************)
 (* Actions                                                                  *)
 (***************************************************************************)
 
-Init == state = openAndUnlocked
+Init == state = OpenAndUnlocked
 
-Lock_Close == /\ state = openAndUnlocked
-              /\ state' = closedAndLocked  
+Lock_And_Close == /\ state = OpenAndUnlocked
+                  /\ state' = ClosedAndLocked  
 
-Unlock_Open == /\ state = closedAndLocked
-              /\ state' = openAndUnlocked
+Unlock_And_Open == /\ state = ClosedAndLocked
+                   /\ state' = OpenAndUnlocked
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)
 (***************************************************************************)
 
-Next == Lock_Close \/ Unlock_Open
+Next == Lock_And_Close \/ Unlock_And_Open
 
 Spec1 == Init /\ [][Next]_state
 
@@ -44,12 +41,10 @@ Spec1 == Init /\ [][Next]_state
 (* Verified Refinement                                                     *)
 (***************************************************************************)
 
-THEOREM Spec1 => [] TypeInvariant
-
-THEOREM Spec1 => [] SafetyInvariant
+THEOREM Spec1 => /\ TypeInvariant
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Jan 10 15:38:30 CET 2023 by mitch
+\* Last modified Tue Jan 10 16:01:15 CET 2023 by mitch
 \* Last modified Sat Dec 31 09:01:42 CET 2022 by marian
 \* Created Sat Dec 31 08:58:24 CET 2022 by marian
