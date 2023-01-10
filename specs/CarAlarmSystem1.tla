@@ -1,16 +1,49 @@
 -------------------------- MODULE CarAlarmSystem1 --------------------------
-EXTENDS Naturals
+
 (***************************************************************************)
 (* Base refinement for the car alarm system                                *)
 (***************************************************************************)
 
-\* TODO
+CONSTANT openAndUnlocked, closedAndLocked
+ASSUME openAndUnlocked /= closedAndLocked
 
-CONSTANT N
-ASSUME N \in Nat \ {0}
+STATES == {openAndUnlocked, closedAndLocked}
 
+VARIABLES state
+
+(***************************************************************************)
+(* Invariants                                                              *)
+(***************************************************************************)
+
+TypeInvariant == state \in STATES
+                 
+(***************************************************************************)
+(* Actions                                                                  *)
+(***************************************************************************)
+
+Init == state = openAndUnlocked
+
+Lock_Close == /\ state = openAndUnlocked
+              /\ state' = closedAndLocked  
+
+Unlock_Open == /\ state = closedAndLocked
+              /\ state' = openAndUnlocked
+
+(***************************************************************************)
+(* Top-level Specification                                                 *)
+(***************************************************************************)
+
+Next == Lock_Close \/ Unlock_Open
+
+Spec1 == Init /\ [][Next]_state
+
+(***************************************************************************)
+(* Verified Refinement                                                     *)
+(***************************************************************************)
+THEOREM Spec1 => [] TypeInvariant
 
 =============================================================================
 \* Modification History
+\* Last modified Tue Jan 10 15:19:07 CET 2023 by mitch
 \* Last modified Sat Dec 31 09:01:42 CET 2022 by marian
 \* Created Sat Dec 31 08:58:24 CET 2022 by marian
