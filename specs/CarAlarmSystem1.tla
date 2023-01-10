@@ -16,6 +16,9 @@ VARIABLES state
 (***************************************************************************)
 
 TypeInvariant == state \in STATES
+
+SafetyInvariant == \/ state = openAndUnlocked
+                   \/ state = closedAndLocked
                  
 (***************************************************************************)
 (* Actions                                                                  *)
@@ -40,10 +43,13 @@ Spec1 == Init /\ [][Next]_state
 (***************************************************************************)
 (* Verified Refinement                                                     *)
 (***************************************************************************)
+
 THEOREM Spec1 => [] TypeInvariant
+
+THEOREM Spec1 => [] SafetyInvariant
 
 =============================================================================
 \* Modification History
-\* Last modified Tue Jan 10 15:19:07 CET 2023 by mitch
+\* Last modified Tue Jan 10 15:38:30 CET 2023 by mitch
 \* Last modified Sat Dec 31 09:01:42 CET 2022 by marian
 \* Created Sat Dec 31 08:58:24 CET 2022 by marian
