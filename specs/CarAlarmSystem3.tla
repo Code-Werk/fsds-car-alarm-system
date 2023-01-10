@@ -71,7 +71,7 @@ Arming == /\ state  = ClosedAndLocked
           /\ state' = Armed
 
 SilentAlarm == /\ state = Alarm
-               /\ state = SilentAndOpen
+               /\ state' = SilentAndOpen
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)
