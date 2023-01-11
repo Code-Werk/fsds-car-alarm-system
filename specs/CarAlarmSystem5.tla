@@ -3,8 +3,13 @@
 (***************************************************************************)
 (* Fourth refinement for the car alarm system                              *)
 (***************************************************************************)
-
+\* TODO is old copy of 4 with time: do refinment
 EXTENDS Naturals
+
+DefaultAlarmRange == 1..31
+DefaultSilentAlarmRange == 1..301
+
+CONSTANT ArmingDelay, AlarmDuration, AlarmRange, SilentAlarmRange, SoundDuration
 
 OpenAndUnlocked   == 0
 ClosedAndLocked   == 1
@@ -25,106 +30,119 @@ STATES ==
         SilentAndOpen
     }
 
-VARIABLES state, isArmed, flash, sound
+VARIABLES state, isArmed, now
 
-vars == <<state, isArmed, flash, sound>>
+vars == <<state, isArmed, now>>
 
-CarAlarm == INSTANCE CarAlarm1 WITH flash <- flash, sound <- sound
+CarAlarm == INSTANCE CarAlarm2 WITH flash <- 0, sound <- 0, now <- 0
 
 (***************************************************************************)
 (* Invariants                                                              *)
 (***************************************************************************)
 
 TypeInvariant == /\ state \in STATES
-                 /\ isArmed \in BOOLEAN
+                 /\ isArmed \in BOOLEAN 
+                 /\ now \in Nat
                  
 SafetyInvariant == /\ IF state = Armed 
                       THEN isArmed = TRUE
                       ELSE isArmed = FALSE
-                   /\ state = Alarm => flash = 1
-
+                \*    /\ state = Alarm => CarAlarm!RunningAlarmInvariant
+     
+                 
 (***************************************************************************)
 (* Actions                                                                 *)
 (***************************************************************************)
 
 Init == /\ state = OpenAndUnlocked
         /\ isArmed = FALSE
-        /\ flash = 0
-        /\ sound = 0
+        /\ now = 0
+
 
 Close_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                                /\ state' = ClosedAndUnlocked
-                               /\ UNCHANGED<<isArmed, flash, sound>>
+                               /\ UNCHANGED<<isArmed,now>>
 
 Close_After_OpenAndLocked == /\ state  = OpenAndLocked
                              /\ state' = ClosedAndLocked
-                             /\ UNCHANGED<<isArmed, flash, sound>>
+                             /\ now' = 0
+                             /\ UNCHANGED<<isArmed>>
 
 Close_After_SilentAndOpen == /\ state  = SilentAndOpen
                              /\ state' = Armed
                              /\ isArmed' = TRUE
-                             /\ UNCHANGED<<flash, sound>>
+                             /\ UNCHANGED<<now>>
 
 Lock_After_OpenAndUnlocked == /\ state  = OpenAndUnlocked
                               /\ state' = OpenAndLocked
-                              /\ UNCHANGED<<isArmed, flash, sound>>
+                              /\ UNCHANGED<<isArmed, now>>
 
 Lock_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
                                 /\ state' = ClosedAndLocked
-                                /\ UNCHANGED<<isArmed, flash, sound>>
+                                /\ now'   = 0
+                                /\ UNCHANGED<<isArmed>>
 
 Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
                                 /\ state' = OpenAndUnlocked
-                                /\ UNCHANGED<<isArmed, flash, sound>>
+                                /\ UNCHANGED<<isArmed, now>>
 
 Open_After_ClosedAndLocked == /\ state  = ClosedAndLocked
                               /\ state' = OpenAndLocked
-                              /\ UNCHANGED<<isArmed, flash, sound>>
+                              /\ UNCHANGED<<isArmed, now>>
 
 Open_After_Armed == /\ state  = Armed
                     /\ state' = Alarm
                     /\ isArmed' = FALSE
-                    /\ CarAlarm!Activate
+                    /\ now' = 0
+                    \* /\ CarAlarm!Activate
 
 Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked
                                 /\ state' = ClosedAndUnlocked
-                                /\ UNCHANGED<<isArmed, flash, sound>>
+                                /\ UNCHANGED<<isArmed, now>>
 
 Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked
                               /\ state' = OpenAndUnlocked
-                              /\ UNCHANGED<<isArmed, flash, sound>>
+                              /\ UNCHANGED<<isArmed, now>>
              
 Unlock_After_Armed == /\ state  = Armed
                       /\ state' = ClosedAndUnlocked
                       /\ isArmed' = FALSE
-                      /\ UNCHANGED<<flash, sound>>
+                      /\ UNCHANGED<<now>>
 
 Unlock_After_Alarm == /\ state  = Alarm
                       /\ state' = OpenAndUnlocked
-                      /\ CarAlarm!Deactivate
-                      /\ UNCHANGED<<isArmed>>
+                      \* /\ CarAlarm!Deactivate
+                      /\ UNCHANGED<<isArmed, now>>
 
 Unlock_After_SilentAndOpen == /\ state  = SilentAndOpen
                               /\ state' = OpenAndUnlocked
-                              /\ UNCHANGED<<isArmed, flash, sound>>
+                              /\ UNCHANGED<<isArmed, now>>
 
-Arming == /\ state  = ClosedAndLocked
+Arming == /\ now > ArmingDelay
+          /\ state  = ClosedAndLocked
           /\ state' = Armed
           /\ isArmed' = TRUE
-          /\ UNCHANGED<<flash, sound>>
+          /\ UNCHANGED<<now>>
 
-SilentAlarm == /\ state = Alarm
+SilentAlarm == /\ now > AlarmDuration
+               /\ state = Alarm
                /\ state' = SilentAndOpen
-               /\ CarAlarm!Deactivate
-               /\ UNCHANGED<<isArmed>>
+            \*    /\ CarAlarm!Deactivate
+               /\ UNCHANGED<<isArmed, now>>
 
-DeactivateSound == /\ CarAlarm!DeactivateSound
-                   /\ UNCHANGED<<state, isArmed>>   
+Tick == /\ state \in { ClosedAndLocked, Alarm }
+        /\ \E d \in { n \in SilentAlarmRange : n > now}:
+            now' = d 
+        /\ UNCHANGED<<state, isArmed>>
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)
 (***************************************************************************)
 
+\* Next == \/ Close 
+\*         \/ Lock 
+\*         \/ Open 
+\*         \/ Unlock
 Next == \/ Close_After_OpenAndUnlocked
         \/ Close_After_OpenAndLocked
         \/ Close_After_SilentAndOpen
@@ -140,9 +158,14 @@ Next == \/ Close_After_OpenAndUnlocked
         \/ Unlock_After_SilentAndOpen
         \/ Arming
         \/ SilentAlarm
-        \/ DeactivateSound
+        \/ Tick
+        \* \/ CarAlarm!Tick
+        \* \/ CarAlarm!DeactivateSound
 
 Spec4 == Init /\ [][Next]_vars
+
+\* FairSpec4 == /\ Spec4 
+\*              /\ \A r \in SilentAlarmRange : WF_now(Tick /\ now' > r)
 
 (***************************************************************************)
 (* Verified Refinement                                                     *)
@@ -151,7 +174,7 @@ Spec4 == Init /\ [][Next]_vars
 CarAlarmSystem3 == INSTANCE CarAlarmSystem3
 
 THEOREM Spec4 => /\ CarAlarmSystem3!Spec3
-                 /\ CarAlarm!SpecAlarm1
+                 /\ CarAlarm!SpecAlarm2
                  /\ TypeInvariant
                  /\ SafetyInvariant
 
