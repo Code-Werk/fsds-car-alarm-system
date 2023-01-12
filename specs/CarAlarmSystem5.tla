@@ -6,12 +6,10 @@
 
 EXTENDS Naturals
 
-DefaultArmedRange == 0..20
-
-CONSTANT ArmedDelay, ArmedRange
-
+CONSTANT ArmedDelay
 ASSUME ArmedDelay \in Nat
-ASSUME ArmedRange \in SUBSET Nat
+
+ArmedRange == 0..ArmedDelay
 
 OpenAndUnlocked   == 0
 ClosedAndLocked   == 1
