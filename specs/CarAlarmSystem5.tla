@@ -10,6 +10,9 @@ DefaultArmedRange == 0..20
 
 CONSTANT ArmedDelay, ArmedRange
 
+ASSUME ArmedDelay \in Nat
+ASSUME ArmedRange \in SUBSET Nat
+
 OpenAndUnlocked   == 0
 ClosedAndLocked   == 1
 OpenAndLocked     == 2
