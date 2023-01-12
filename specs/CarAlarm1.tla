@@ -16,25 +16,29 @@ TypeInvariant == /\ flash \in BOOLEAN
                  /\ sound \in BOOLEAN
                  
 SafetyInvariant == \/ flash = sound
-                   \/ flash = 1 /\ sound = 0    
+                   \/ /\ flash = TRUE 
+                      /\ sound = FALSE    
+
+Invariant == /\ TypeInvariant
+             /\ SafetyInvariant 
 
 (***************************************************************************)
 (* Actions                                                                 *)
 (***************************************************************************)
 
-Init == /\ flash = 0
-        /\ sound = 0
+Init == /\ flash = FALSE
+        /\ sound = FALSE
 
-Activate == /\ flash' = 1
-            /\ sound' = 1
+Activate == /\ flash' = TRUE
+            /\ sound' = TRUE
 
-DeactivateSound == /\ flash  = 1
-                   /\ sound  = 1
-                   /\ sound' = 0
+DeactivateSound == /\ flash  = TRUE
+                   /\ sound  = TRUE
+                   /\ sound' = FALSE
                    /\ UNCHANGED<<flash>>
 
-Deactivate == /\ flash' = 0
-              /\ sound' = 0
+Deactivate == /\ flash' = FALSE
+              /\ sound' = FALSE
     
 (***************************************************************************)
 (* Top-level Specification                                                 *)
@@ -44,14 +48,13 @@ Next == \/ Activate
         \/ DeactivateSound
         \/ Deactivate
 
-SpecAlarm1 == Init /\ [][Next]_vars
+Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
 (* Verified Refinement                                                     *)
 (***************************************************************************)
 
-THEOREM SpecAlarm1 => /\ TypeInvariant
-                      /\ SafetyInvariant
+THEOREM Spec => []Invariant
 
 =============================================================================
 \* Modification History

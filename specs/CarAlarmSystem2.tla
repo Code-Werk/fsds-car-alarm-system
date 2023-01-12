@@ -45,7 +45,6 @@ Unlock == /\ \/ /\ state  = ClosedAndLocked
              \/ /\ state  = OpenAndLocked
                 /\ state' = OpenAndUnlocked
 
-
 (***************************************************************************)
 (* Top-level Specification                                                 *)
 (***************************************************************************)
@@ -55,7 +54,7 @@ Next == \/ Close
         \/ Open 
         \/ Unlock
 
-Spec2 == Init /\ [][Next]_state
+Spec == Init /\ [][Next]_state
 
 (***************************************************************************)
 (* Verified Refinement                                                     *)
@@ -63,8 +62,8 @@ Spec2 == Init /\ [][Next]_state
 
 CarAlarmSystem1 == INSTANCE CarAlarmSystem1
 
-THEOREM Spec2 => /\ CarAlarmSystem1!Spec1
-                 /\ TypeInvariant
+THEOREM Spec => /\ CarAlarmSystem1!Spec
+                /\ []TypeInvariant
 
 =============================================================================
 \* Modification History

@@ -84,7 +84,7 @@ Next == \/ Close
         \/ Arming
         \/ SilentAlarm
 
-Spec3 == Init /\ [][Next]_state
+Spec == Init /\ [][Next]_state
 
 (***************************************************************************)
 (* Verified Refinement                                                     *)
@@ -92,8 +92,8 @@ Spec3 == Init /\ [][Next]_state
 
 CarAlarmSystem2 == INSTANCE CarAlarmSystem2
 
-THEOREM Spec3 => /\ CarAlarmSystem2!Spec2
-                 /\ TypeInvariant
+THEOREM Spec => /\ CarAlarmSystem2!Spec
+                /\ []TypeInvariant
 
 =============================================================================
 \* Modification History

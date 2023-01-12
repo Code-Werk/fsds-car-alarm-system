@@ -16,9 +16,9 @@ VARIABLES state
 (***************************************************************************)
 
 TypeInvariant == state \in STATES
-                 
+
 (***************************************************************************)
-(* Actions                                                                  *)
+(* Actions                                                                 *)
 (***************************************************************************)
 
 Init == state = OpenAndUnlocked
@@ -35,13 +35,9 @@ Unlock_And_Open == /\ state = ClosedAndLocked
 
 Next == Lock_And_Close \/ Unlock_And_Open
 
-Spec1 == Init /\ [][Next]_state
+Spec == Init /\ [][Next]_state
 
-(***************************************************************************)
-(* Verified Refinement                                                     *)
-(***************************************************************************)
-
-THEOREM Spec1 => /\ TypeInvariant
+THEOREM Spec => []TypeInvariant
 
 =============================================================================
 \* Modification History

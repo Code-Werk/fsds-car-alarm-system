@@ -29,7 +29,6 @@ VARIABLES state, isArmed, flash, sound
 
 vars == <<state, isArmed, flash, sound>>
 
-CarAlarm == INSTANCE CarAlarm1 WITH flash <- flash, sound <- sound
 
 (***************************************************************************)
 (* Invariants                                                              *)
@@ -41,7 +40,12 @@ TypeInvariant == /\ state \in STATES
 SafetyInvariant == /\ IF state = Armed 
                       THEN isArmed = TRUE
                       ELSE isArmed = FALSE
-                   /\ state = Alarm => flash = 1
+                   /\ state = Alarm => flash = TRUE
+
+Invariant == /\ TypeInvariant
+             /\ SafetyInvariant 
+
+CarAlarm == INSTANCE CarAlarm1 WITH flash <- flash, sound <- sound
 
 (***************************************************************************)
 (* Actions                                                                 *)
@@ -49,8 +53,8 @@ SafetyInvariant == /\ IF state = Armed
 
 Init == /\ state = OpenAndUnlocked
         /\ isArmed = FALSE
-        /\ flash = 0
-        /\ sound = 0
+        /\ flash = FALSE
+        /\ sound = FALSE
 
 Close_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                                /\ state' = ClosedAndUnlocked
@@ -142,7 +146,7 @@ Next == \/ Close_After_OpenAndUnlocked
         \/ SilentAlarm
         \/ DeactivateSound
 
-Spec4 == Init /\ [][Next]_vars
+Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
 (* Verified Refinement                                                     *)
@@ -150,10 +154,9 @@ Spec4 == Init /\ [][Next]_vars
 
 CarAlarmSystem3 == INSTANCE CarAlarmSystem3
 
-THEOREM Spec4 => /\ CarAlarmSystem3!Spec3
-                 /\ CarAlarm!SpecAlarm1
-                 /\ TypeInvariant
-                 /\ SafetyInvariant
+THEOREM Spec => /\ CarAlarmSystem3!Spec
+                /\ CarAlarm!Spec
+                /\ []Invariant
 
 =============================================================================
 \* Modification History

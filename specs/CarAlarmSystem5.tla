@@ -1,15 +1,14 @@
--------------------------- MODULE CarAlarmSystem4 --------------------------
+-------------------------- MODULE CarAlarmSystem5 --------------------------
 
 (***************************************************************************)
-(* Fourth refinement for the car alarm system                              *)
+(* Fith refinement for the car alarm system                                *)
 (***************************************************************************)
-\* TODO is old copy of 4 with time: do refinment
+
 EXTENDS Naturals
 
-DefaultAlarmRange == 1..31
-DefaultSilentAlarmRange == 1..301
+DefaultArmedRange == 0..20
 
-CONSTANT ArmingDelay, AlarmDuration, AlarmRange, SilentAlarmRange, SoundDuration
+CONSTANT ArmedDelay, ArmedRange
 
 OpenAndUnlocked   == 0
 ClosedAndLocked   == 1
@@ -30,119 +29,123 @@ STATES ==
         SilentAndOpen
     }
 
-VARIABLES state, isArmed, now
+VARIABLES state, isArmed, flash, sound, armedTimer
 
-vars == <<state, isArmed, now>>
+vars == <<state, isArmed, flash, sound, armedTimer>>
+vars_without_state == <<isArmed, flash, sound, armedTimer>>
 
-CarAlarm == INSTANCE CarAlarm2 WITH flash <- 0, sound <- 0, now <- 0
+CarAlarm == INSTANCE CarAlarm1 WITH flash <- flash, sound <- sound
 
 (***************************************************************************)
 (* Invariants                                                              *)
 (***************************************************************************)
 
 TypeInvariant == /\ state \in STATES
-                 /\ isArmed \in BOOLEAN 
-                 /\ now \in Nat
+                 /\ isArmed \in BOOLEAN
+                 /\ armedTimer \in ArmedRange
                  
-SafetyInvariant == /\ IF state = Armed 
-                      THEN isArmed = TRUE
-                      ELSE isArmed = FALSE
-                \*    /\ state = Alarm => CarAlarm!RunningAlarmInvariant
-     
-                 
+SafetyInvariant == /\ state = Alarm => flash = TRUE
+                   /\ state = Armed => armedTimer = ArmedDelay /\ isArmed = TRUE
+                   /\ state /= ClosedAndLocked => armedTimer = ArmedDelay
+
+Invariant == /\ TypeInvariant
+             /\ SafetyInvariant
+
 (***************************************************************************)
 (* Actions                                                                 *)
 (***************************************************************************)
 
 Init == /\ state = OpenAndUnlocked
         /\ isArmed = FALSE
-        /\ now = 0
-
+        /\ flash = FALSE
+        /\ sound = FALSE
+        /\ armedTimer = ArmedDelay
 
 Close_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                                /\ state' = ClosedAndUnlocked
-                               /\ UNCHANGED<<isArmed,now>>
+                               /\ UNCHANGED<<isArmed, flash, sound, armedTimer>>
 
 Close_After_OpenAndLocked == /\ state  = OpenAndLocked
                              /\ state' = ClosedAndLocked
-                             /\ now' = 0
-                             /\ UNCHANGED<<isArmed>>
+                             /\ UNCHANGED<<isArmed, flash, sound, armedTimer>>
 
 Close_After_SilentAndOpen == /\ state  = SilentAndOpen
                              /\ state' = Armed
                              /\ isArmed' = TRUE
-                             /\ UNCHANGED<<now>>
+                             /\ UNCHANGED<<flash, sound, armedTimer>>
+
 
 Lock_After_OpenAndUnlocked == /\ state  = OpenAndUnlocked
                               /\ state' = OpenAndLocked
-                              /\ UNCHANGED<<isArmed, now>>
+                              /\ UNCHANGED<<vars_without_state>>
 
 Lock_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
                                 /\ state' = ClosedAndLocked
-                                /\ now'   = 0
-                                /\ UNCHANGED<<isArmed>>
+                                /\ UNCHANGED<<vars_without_state>>
 
 Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
                                 /\ state' = OpenAndUnlocked
-                                /\ UNCHANGED<<isArmed, now>>
+                                /\ UNCHANGED<<vars_without_state>>
 
 Open_After_ClosedAndLocked == /\ state  = ClosedAndLocked
                               /\ state' = OpenAndLocked
-                              /\ UNCHANGED<<isArmed, now>>
+                              /\ armedTimer'= ArmedDelay
+                              /\ UNCHANGED<<flash, sound, isArmed>>
 
 Open_After_Armed == /\ state  = Armed
                     /\ state' = Alarm
                     /\ isArmed' = FALSE
-                    /\ now' = 0
-                    \* /\ CarAlarm!Activate
+                    /\ CarAlarm!Activate
+                    /\ UNCHANGED<<armedTimer>>
 
 Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked
                                 /\ state' = ClosedAndUnlocked
-                                /\ UNCHANGED<<isArmed, now>>
+                                /\ armedTimer'= ArmedDelay
+                                /\ UNCHANGED<<flash, sound, isArmed>>
 
 Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked
                               /\ state' = OpenAndUnlocked
-                              /\ UNCHANGED<<isArmed, now>>
+                              /\ UNCHANGED<<vars_without_state>>
              
 Unlock_After_Armed == /\ state  = Armed
                       /\ state' = ClosedAndUnlocked
                       /\ isArmed' = FALSE
-                      /\ UNCHANGED<<now>>
+                      /\ UNCHANGED<<flash, sound, armedTimer>>
 
 Unlock_After_Alarm == /\ state  = Alarm
                       /\ state' = OpenAndUnlocked
-                      \* /\ CarAlarm!Deactivate
-                      /\ UNCHANGED<<isArmed, now>>
+                      /\ CarAlarm!Deactivate
+                      /\ UNCHANGED<<isArmed, armedTimer>>
 
 Unlock_After_SilentAndOpen == /\ state  = SilentAndOpen
                               /\ state' = OpenAndUnlocked
-                              /\ UNCHANGED<<isArmed, now>>
+                              /\ UNCHANGED<<vars_without_state>>
 
-Arming == /\ now > ArmingDelay
-          /\ state  = ClosedAndLocked
+Arming == /\ state  = ClosedAndLocked
+          /\ armedTimer = 0
           /\ state' = Armed
           /\ isArmed' = TRUE
-          /\ UNCHANGED<<now>>
+          /\ armedTimer'= ArmedDelay
+          /\ UNCHANGED<<flash, sound>>
 
-SilentAlarm == /\ now > AlarmDuration
-               /\ state = Alarm
+SilentAlarm == /\ state = Alarm
                /\ state' = SilentAndOpen
-            \*    /\ CarAlarm!Deactivate
-               /\ UNCHANGED<<isArmed, now>>
+               /\ CarAlarm!Deactivate
+               /\ UNCHANGED<<isArmed, armedTimer>>
 
-Tick == /\ state \in { ClosedAndLocked, Alarm }
-        /\ \E d \in { n \in SilentAlarmRange : n > now}:
-            now' = d 
-        /\ UNCHANGED<<state, isArmed>>
+DeactivateSound == /\ CarAlarm!DeactivateSound
+                   /\ UNCHANGED<<state, isArmed, armedTimer>>   
+
+Tick == /\ state = ClosedAndLocked
+        /\ armedTimer > 0
+        /\ \E d \in { n \in ArmedRange : n < armedTimer}:
+            armedTimer' = d 
+        /\ UNCHANGED<<state, isArmed, sound, flash>>
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)
 (***************************************************************************)
 
-\* Next == \/ Close 
-\*         \/ Lock 
-\*         \/ Open 
-\*         \/ Unlock
 Next == \/ Close_After_OpenAndUnlocked
         \/ Close_After_OpenAndLocked
         \/ Close_After_SilentAndOpen
@@ -158,25 +161,20 @@ Next == \/ Close_After_OpenAndUnlocked
         \/ Unlock_After_SilentAndOpen
         \/ Arming
         \/ SilentAlarm
+        \/ DeactivateSound
         \/ Tick
-        \* \/ CarAlarm!Tick
-        \* \/ CarAlarm!DeactivateSound
 
-Spec4 == Init /\ [][Next]_vars
-
-\* FairSpec4 == /\ Spec4 
-\*              /\ \A r \in SilentAlarmRange : WF_now(Tick /\ now' > r)
+Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
 (* Verified Refinement                                                     *)
 (***************************************************************************)
 
-CarAlarmSystem3 == INSTANCE CarAlarmSystem3
+CarAlarmSystem4 == INSTANCE CarAlarmSystem4
 
-THEOREM Spec4 => /\ CarAlarmSystem3!Spec3
-                 /\ CarAlarm!SpecAlarm2
-                 /\ TypeInvariant
-                 /\ SafetyInvariant
+THEOREM Spec => /\ CarAlarmSystem4!Spec
+                /\ CarAlarm!Spec
+                /\ []Invariant
 
 =============================================================================
 \* Modification History
