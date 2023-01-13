@@ -8,18 +8,20 @@
 (* ClosedAndLocked state. That means close/unlock open/unlock are always   *)
 (* handled as one single step and there are no states in between. The idea *)
 (* here is to model the very base function of a car lock: lock and unlock. *)
+(*                                                                         *)
+(* This refinement targets Requirements 1 - 3.                             *)
 (***************************************************************************)
 
-OpenAndUnlocked == 0
-ClosedAndLocked == 1
+OpenAndUnlocked == 0            \* Car is open and unlocked
+ClosedAndLocked == 1            \* Car is closed and locked
 
-STATES ==
+STATES ==                       \* Currently possible states
     {
         OpenAndUnlocked,
         ClosedAndLocked
     }
 
-VARIABLES state
+VARIABLES state                \* the current state in the state diagram
 
 (***************************************************************************)
 (* Invariants                                                              *)
@@ -33,10 +35,10 @@ TypeInvariant == state \in STATES
 
 Init == state = OpenAndUnlocked
 
-Lock_And_Close == /\ state = OpenAndUnlocked
-                  /\ state' = ClosedAndLocked  
+Lock_And_Close == /\ state = OpenAndUnlocked            \* close the car and lock it
+                  /\ state' = ClosedAndLocked
 
-Unlock_And_Open == /\ state = ClosedAndLocked
+Unlock_And_Open == /\ state = ClosedAndLocked           \* open the car and unlock it
                    /\ state' = OpenAndUnlocked
 
 (***************************************************************************)

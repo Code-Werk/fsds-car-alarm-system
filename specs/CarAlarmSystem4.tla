@@ -3,7 +3,13 @@
 (***************************************************************************)
 (* Fourth refinement of the car alarm system:                              *)
 (*                                                                         *)
-(* TODO *)
+(* In the third refinement we add the last states on the state diagram:    *)
+(* Armed and Alarm. New actions are added with guards according to the     *)
+(* state diagram. The basic lock and unlock features holds, but we are     *)
+(* getting closer to the actual required design and now can handle all     *)
+(* states of the state diagram.                                            *)
+(*                                                                         *)
+(* This refinement targets Requirements 1 - 3.                             *)
 (***************************************************************************)
 
 EXTENDS Naturals
@@ -18,24 +24,25 @@ SilentAndOpen     == 6
 
 STATES == 
     {
-        OpenAndUnlocked, 
-        ClosedAndLocked, 
-        OpenAndLocked, 
-        ClosedAndUnlocked, 
-        Armed, 
-        Alarm, 
+        OpenAndUnlocked,
+        ClosedAndLocked,
+        OpenAndLocked,
+        ClosedAndUnlocked,
+        Armed,
+        Alarm,
         SilentAndOpen
     }
 
 VARIABLES state, isArmed, flash, sound
 
 vars == <<state, isArmed, flash, sound>>
+alarm_vars == <<flash, sound>>
 
 (***************************************************************************)
 (* External Modules                                                        *)
 (***************************************************************************)
 
-CarAlarm == INSTANCE CarAlarm1 WITH flash <- flash, sound <- sound
+CarAlarm == INSTANCE CarAlarm1 \* Refinement mapping through similar var names
 
 (***************************************************************************)
 (* Invariants                                                              *)
@@ -67,20 +74,23 @@ Init == /\ state = OpenAndUnlocked
 
 Close_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                                /\ state' = ClosedAndUnlocked
-                               /\ UNCHANGED<<isArmed, flash, sound>>
+                               /\ UNCHANGED(alarm_vars)
+                               /\ UNCHANGED<<isArmed>>
 
 Close_After_OpenAndLocked == /\ state  = OpenAndLocked
                              /\ state' = ClosedAndLocked
-                             /\ UNCHANGED<<isArmed, flash, sound>>
+                             /\ UNCHANGED(alarm_vars)
+                             /\ UNCHANGED<<isArmed>>
 
 Close_After_SilentAndOpen == /\ state  = SilentAndOpen
                              /\ state' = Armed
                              /\ isArmed' = TRUE
-                             /\ UNCHANGED<<flash, sound>>
+                             /\ UNCHANGED(alarm_vars)
 
 Lock_After_OpenAndUnlocked == /\ state  = OpenAndUnlocked
                               /\ state' = OpenAndLocked
-                              /\ UNCHANGED<<isArmed, flash, sound>>
+                              /\ UNCHANGED(alarm_vars)
+                              /\ UNCHANGED<<isArmed>>
 
 Lock_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
                                 /\ state' = ClosedAndLocked
@@ -88,11 +98,13 @@ Lock_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
 
 Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
                                 /\ state' = OpenAndUnlocked
-                                /\ UNCHANGED<<isArmed, flash, sound>>
+                                /\ UNCHANGED(alarm_vars)
+                                /\ UNCHANGED<<isArmed>>
 
 Open_After_ClosedAndLocked == /\ state  = ClosedAndLocked
                               /\ state' = OpenAndLocked
-                              /\ UNCHANGED<<isArmed, flash, sound>>
+                              /\ UNCHANGED(alarm_vars)
+                              /\ UNCHANGED<<isArmed>>
 
 Open_After_Armed == /\ state  = Armed
                     /\ state' = Alarm
@@ -101,16 +113,18 @@ Open_After_Armed == /\ state  = Armed
 
 Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked
                                 /\ state' = ClosedAndUnlocked
-                                /\ UNCHANGED<<isArmed, flash, sound>>
+                                /\ UNCHANGED(alarm_vars)
+                                /\ UNCHANGED<<isArmed>>
 
 Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked
                               /\ state' = OpenAndUnlocked
-                              /\ UNCHANGED<<isArmed, flash, sound>>
+                              /\ UNCHANGED(alarm_vars)
+                              /\ UNCHANGED<<isArmed>>
              
 Unlock_After_Armed == /\ state  = Armed
                       /\ state' = ClosedAndUnlocked
                       /\ isArmed' = FALSE
-                      /\ UNCHANGED<<flash, sound>>
+                      /\ UNCHANGED(alarm_vars)
 
 Unlock_After_Alarm == /\ state  = Alarm
                       /\ state' = OpenAndUnlocked
@@ -119,12 +133,13 @@ Unlock_After_Alarm == /\ state  = Alarm
 
 Unlock_After_SilentAndOpen == /\ state  = SilentAndOpen
                               /\ state' = OpenAndUnlocked
-                              /\ UNCHANGED<<isArmed, flash, sound>>
+                              /\ UNCHANGED(alarm_vars)
+                              /\ UNCHANGED<<isArmed>>
 
 Arming == /\ state  = ClosedAndLocked
           /\ state' = Armed
           /\ isArmed' = TRUE
-          /\ UNCHANGED<<flash, sound>>
+          /\ UNCHANGED(alarm_vars)
 
 SilentAlarm == /\ state = Alarm
                /\ state' = SilentAndOpen
