@@ -116,8 +116,23 @@ Init == /\ state = OpenAndUnlocked
         /\ missmatchCounter = 0
         /\ alarmTrigger = 0
 
+
 (***************************************************************************)
-(* Pin Actions                                                             *)
+(* Helper Actions                                                          *)
+(* These actions need to be defined before actions that use them           *)
+(***************************************************************************)
+
+CheckPin(nextState) == /\ \E b \in BOOLEAN:
+                          IF b = TRUE
+                          THEN /\ state' = nextState
+                               /\ isArmed' = FALSE
+                               /\ missmatchCounter' = 0
+                          ELSE /\ missmatchCounter' = missmatchCounter + 1
+                               /\ UNCHANGED<<state, isArmed>>
+
+
+(***************************************************************************)
+(* State Actions                                                           *)
 (***************************************************************************)
 
 Close_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
@@ -132,7 +147,7 @@ Close_After_SilentAndOpen == /\ state  = SilentAndOpen
                              /\ state' = Armed
                              /\ isArmed' = TRUE
                              /\ UNCHANGED(timer_vars)
-                             /\ UNCHANGED<<flash, sound, missmatchCounter, alarmTrigger
+                             /\ UNCHANGED<<flash, sound, missmatchCounter, alarmTrigger>>
 Lock_After_OpenAndUnlocked == /\ state  = OpenAndUnlocked
                               /\ state' = OpenAndLocked
                               /\ UNCHANGED<<vars_without_state>>
@@ -224,14 +239,6 @@ AlarmFinished == /\ state = Alarm
 (***************************************************************************)
 (* Pin Actions                                                             *)
 (***************************************************************************)
-
-CheckPin(nextState) == /\ \E b \in BOOLEAN:
-                          IF b = TRUE
-                          THEN /\ state' = nextState
-                               /\ isArmed' = FALSE
-                               /\ missmatchCounter' = 0
-                          ELSE /\ missmatchCounter' = missmatchCounter + 1
-                               /\ UNCHANGED<<state, isArmed>>
 
 SetNewPin == /\ state \in { OpenAndUnlocked, ClosedAndUnlocked}
              /\ missmatchCounter < MaxPinMissmatch

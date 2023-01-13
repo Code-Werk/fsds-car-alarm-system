@@ -6,13 +6,13 @@
 
 EXTENDS Naturals
 
-DefaultAlarmRange == 1..31
+CONSTANT SoundDuration
 
-CONSTANT SoundDuration, AlarmRange
+AlarmRange == 0..SoundDuration
 
-VARIABLES flash, sound, now
+VARIABLES flash, sound, soundTimer
 
-vars == <<flash, sound, now>>
+vars == <<flash, sound, soundTimer>>
 
 (***************************************************************************)
 (* Invariants                                                              *)
@@ -20,6 +20,7 @@ vars == <<flash, sound, now>>
 
 TypeInvariant == /\ flash \in BOOLEAN
                  /\ sound \in BOOLEAN
+                 /\ soundTimer \in SoundDuration
                  
 SafetyInvariant == \/ flash = sound
                    \/ /\ flash = TRUE 
@@ -34,26 +35,27 @@ Invariant == /\ TypeInvariant
 
 Init == /\ flash = 0
         /\ sound = 0
-        /\ now   = 0
+        /\ soundTimer = 0
 
 Activate == /\ flash = 0
             /\ flash' = 1
             /\ sound' = 1
-            /\ now'    = 0
+            /\ soundTimer' = SoundDuration
 
-DeactivateSound == /\ now > SoundDuration
+DeactivateSound == /\ soundTimer = 0
                    /\ flash  = 1
                    /\ sound  = 1
                    /\ sound' = 0
-                   /\ UNCHANGED<<flash, now>>
+                   /\ UNCHANGED<<flash, soundTimer>>
 
 Deactivate == /\ flash' = 0
               /\ sound' = 0
-              /\ UNCHANGED<<now>>
+              /\ soundTimer' = 0
+              /\ UNCHANGED<<soundTimer>>
 
 Tick == /\ sound = 1
-        /\ \E d \in { n \in AlarmRange : n > now}:
-            now' = d 
+        /\ \E d \in { n \in AlarmRange : n < soundTimer}:
+            soundTimer' = d 
         /\ UNCHANGED<<flash, sound>>
     
 (***************************************************************************)

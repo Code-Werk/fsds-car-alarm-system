@@ -101,7 +101,6 @@ Invariant == /\ TypeInvariant
 \* 1. pin missmatch: after 300 seconds back to armed or proper unlock with physical key 
 \* 2. open: after 300 seconds to silent open or proper unlock with physical key 
 
-
 Init == /\ state = OpenAndUnlocked
         /\ isArmed = FALSE
         /\ flash = FALSE
@@ -109,6 +108,19 @@ Init == /\ state = OpenAndUnlocked
         /\ armedTimer = ArmedDelay
         /\ alarmTimer = AlarmDelay
         /\ missmatchCounter = 0
+
+(***************************************************************************)
+(* Helper Actions                                                          *)
+(* These actions need to be defined before actions that use them           *)
+(***************************************************************************)
+
+CheckPin(nextState) == /\ \E b \in BOOLEAN:
+                          IF b = TRUE
+                          THEN /\ state' = nextState
+                               /\ isArmed' = FALSE
+                               /\ missmatchCounter' = 0
+                          ELSE /\ missmatchCounter' = missmatchCounter + 1
+                               /\ UNCHANGED<<state, isArmed>>
 
 (***************************************************************************)
 (* State Actions                                                           *)
@@ -209,18 +221,6 @@ AlarmFinished == /\ state = Alarm
                     THEN /\ SetArmed
                     ELSE /\ state' = SilentAndOpen
                          /\ UNCHANGED<<isArmed, missmatchCounter>>
-
-(***************************************************************************)
-(* Pin Actions                                                             *)
-(***************************************************************************)
-
-CheckPin(nextState) == /\ \E b \in BOOLEAN:
-                          IF b = TRUE
-                          THEN /\ state' = nextState
-                               /\ isArmed' = FALSE
-                               /\ missmatchCounter' = 0
-                          ELSE /\ missmatchCounter' = missmatchCounter + 1
-                               /\ UNCHANGED<<state, isArmed>>
 
 (***************************************************************************)
 (* Timer Actions                                                           *)
