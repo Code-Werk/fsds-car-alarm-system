@@ -1,7 +1,9 @@
 -------------------------- MODULE CarAlarmSystem3 --------------------------
 
 (***************************************************************************)
-(* Third refinement for the car alarm system                              *)
+(* Third refinement of the car alarm system:                               *)
+(*                                                                         *)
+(* TODO *)
 (***************************************************************************)
 
 OpenAndUnlocked   == 0
@@ -37,24 +39,24 @@ TypeInvariant == state \in STATES
 
 Init == state = OpenAndUnlocked
 
-Close ==  /\ \/ /\ state  = OpenAndUnlocked
-                /\ state' = ClosedAndUnlocked
-             \/ /\ state  = OpenAndLocked
-                /\ state' = ClosedAndLocked
-             \/ /\ state  = SilentAndOpen
-                /\ state' = Armed
+Close == /\ \/ /\ state  = OpenAndUnlocked
+               /\ state' = ClosedAndUnlocked
+            \/ /\ state  = OpenAndLocked
+               /\ state' = ClosedAndLocked
+            \/ /\ state  = SilentAndOpen
+               /\ state' = Armed
 
-Lock ==   /\ \/ /\ state  = OpenAndUnlocked
-                /\ state' = OpenAndLocked
-             \/ /\ state  = ClosedAndUnlocked
-                /\ state' = ClosedAndLocked
+Lock == /\ \/ /\ state  = OpenAndUnlocked
+              /\ state' = OpenAndLocked
+           \/ /\ state  = ClosedAndUnlocked
+              /\ state' = ClosedAndLocked
 
-Open ==   /\ \/ /\ state  = ClosedAndUnlocked
-                /\ state' = OpenAndUnlocked
-             \/ /\ state  = ClosedAndLocked
-                /\ state' = OpenAndLocked
-             \/ /\ state  = Armed
-                /\ state' = Alarm
+Open == /\ \/ /\ state  = ClosedAndUnlocked
+              /\ state' = OpenAndUnlocked
+           \/ /\ state  = ClosedAndLocked
+              /\ state' = OpenAndLocked
+           \/ /\ state  = Armed
+              /\ state' = Alarm
            
 Unlock == /\ \/ /\ state  = ClosedAndLocked
                 /\ state' = ClosedAndUnlocked
@@ -87,7 +89,7 @@ Next == \/ Close
 Spec == Init /\ [][Next]_state
 
 (***************************************************************************)
-(* Verified Refinement                                                     *)
+(* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
 CarAlarmSystem2 == INSTANCE CarAlarmSystem2

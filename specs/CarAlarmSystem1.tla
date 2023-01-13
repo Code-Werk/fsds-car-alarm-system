@@ -1,13 +1,23 @@
 -------------------------- MODULE CarAlarmSystem1 --------------------------
 
 (***************************************************************************)
-(* Base refinement for the car alarm system                                *)
+(* First and base refinement of the car alarm system:                      *)
+(*                                                                         *)
+(* In this initial step we simply check that the car alarm system can      *)
+(* switch between the state diagram's OpenAndUnlocked state and the        *)
+(* ClosedAndLocked state. That means close/unlock open/unlock are always   *)
+(* handled as one single step and there are no states in between. The idea *)
+(* here is to model the very base function of a car lock: lock and unlock. *)
 (***************************************************************************)
 
-OpenAndUnlocked   == 0
-ClosedAndLocked   == 1
+OpenAndUnlocked == 0
+ClosedAndLocked == 1
 
-STATES == {OpenAndUnlocked, ClosedAndLocked}
+STATES ==
+    {
+        OpenAndUnlocked,
+        ClosedAndLocked
+    }
 
 VARIABLES state
 
@@ -33,9 +43,14 @@ Unlock_And_Open == /\ state = ClosedAndLocked
 (* Top-level Specification                                                 *)
 (***************************************************************************)
 
-Next == Lock_And_Close \/ Unlock_And_Open
+Next == \/ Lock_And_Close
+        \/ Unlock_And_Open
 
 Spec == Init /\ [][Next]_state
+
+(***************************************************************************)
+(* Verified Specification                                                  *)
+(***************************************************************************)
 
 THEOREM Spec => []TypeInvariant
 

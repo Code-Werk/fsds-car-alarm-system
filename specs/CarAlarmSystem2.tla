@@ -1,7 +1,14 @@
 -------------------------- MODULE CarAlarmSystem2 --------------------------
 
 (***************************************************************************)
-(* Second refinement for the car alarm system                              *)
+(* Second refinement of the car alarm system:                              *)
+(*                                                                         *)
+(* In the second refinement we add the intermediate states between         *)
+(* OpenAndUnlocked and ClosedAndLocked: OpenAndLocked & ClosedAndUnlocked. *)
+(* Thus, open, close, lock and unlock are now 4 separate action. The base  *)
+(* function is still the same, so the base refinement is still valid for   *)
+(* this higher refinement. The problem is now less abstract and a bit more *)
+(* detailed and concerns 4 of the states in the state diagram now.         *)
 (***************************************************************************)
 
 OpenAndUnlocked   == 0
@@ -9,7 +16,13 @@ ClosedAndLocked   == 1
 OpenAndLocked     == 2
 ClosedAndUnlocked == 3
 
-STATES == {OpenAndUnlocked, ClosedAndLocked, OpenAndLocked, ClosedAndUnlocked}
+STATES == 
+    {
+        OpenAndUnlocked,
+        ClosedAndLocked,
+        OpenAndLocked,
+        ClosedAndUnlocked
+    }
 
 VARIABLES state
 
@@ -25,20 +38,20 @@ TypeInvariant == state \in STATES
 
 Init == state = OpenAndUnlocked
 
-Close ==  /\ \/ /\ state  = OpenAndUnlocked
-                /\ state' = ClosedAndUnlocked
-             \/ /\ state  = OpenAndLocked
-                /\ state' = ClosedAndLocked
+Close == /\ \/ /\ state  = OpenAndUnlocked
+               /\ state' = ClosedAndUnlocked
+            \/ /\ state  = OpenAndLocked
+               /\ state' = ClosedAndLocked
 
-Lock ==   /\ \/ /\ state  = OpenAndUnlocked
-                /\ state' = OpenAndLocked
-             \/ /\ state  = ClosedAndUnlocked
-                /\ state' = ClosedAndLocked
+Lock == /\ \/ /\ state  = OpenAndUnlocked
+              /\ state' = OpenAndLocked
+           \/ /\ state  = ClosedAndUnlocked
+              /\ state' = ClosedAndLocked
 
-Open ==   /\ \/ /\ state  = ClosedAndUnlocked
-                /\ state' = OpenAndUnlocked
-             \/ /\ state  = ClosedAndLocked
-                /\ state' = OpenAndLocked
+Open == /\ \/ /\ state  = ClosedAndUnlocked
+              /\ state' = OpenAndUnlocked
+           \/ /\ state  = ClosedAndLocked
+              /\ state' = OpenAndLocked
            
 Unlock == /\ \/ /\ state  = ClosedAndLocked
                 /\ state' = ClosedAndUnlocked
@@ -57,7 +70,7 @@ Next == \/ Close
 Spec == Init /\ [][Next]_state
 
 (***************************************************************************)
-(* Verified Refinement                                                     *)
+(* Verified Specification and Verified Refinement                                                     *)
 (***************************************************************************)
 
 CarAlarmSystem1 == INSTANCE CarAlarmSystem1

@@ -1,7 +1,9 @@
 -------------------------- MODULE CarAlarmSystem4 --------------------------
 
 (***************************************************************************)
-(* Fourth refinement for the car alarm system                              *)
+(* Fourth refinement of the car alarm system:                              *)
+(*                                                                         *)
+(* TODO *)
 (***************************************************************************)
 
 EXTENDS Naturals
@@ -29,6 +31,11 @@ VARIABLES state, isArmed, flash, sound
 
 vars == <<state, isArmed, flash, sound>>
 
+(***************************************************************************)
+(* External Modules                                                        *)
+(***************************************************************************)
+
+CarAlarm == INSTANCE CarAlarm1 WITH flash <- flash, sound <- sound
 
 (***************************************************************************)
 (* Invariants                                                              *)
@@ -45,8 +52,6 @@ SafetyInvariant == /\ IF state = Armed
 Invariant == /\ TypeInvariant
              /\ SafetyInvariant 
 
-CarAlarm == INSTANCE CarAlarm1 WITH flash <- flash, sound <- sound
-
 (***************************************************************************)
 (* Actions                                                                 *)
 (***************************************************************************)
@@ -55,6 +60,10 @@ Init == /\ state = OpenAndUnlocked
         /\ isArmed = FALSE
         /\ flash = FALSE
         /\ sound = FALSE
+
+(***************************************************************************)
+(* State Actions                                                           *)
+(***************************************************************************)
 
 Close_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                                /\ state' = ClosedAndUnlocked
@@ -122,6 +131,10 @@ SilentAlarm == /\ state = Alarm
                /\ CarAlarm!Deactivate
                /\ UNCHANGED<<isArmed>>
 
+(***************************************************************************)
+(* Alarm Actions                                                           *)
+(***************************************************************************)
+
 DeactivateSound == /\ CarAlarm!DeactivateSound
                    /\ UNCHANGED<<state, isArmed>>   
 
@@ -149,7 +162,7 @@ Next == \/ Close_After_OpenAndUnlocked
 Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
-(* Verified Refinement                                                     *)
+(* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
 CarAlarmSystem3 == INSTANCE CarAlarmSystem3
@@ -160,4 +173,5 @@ THEOREM Spec => /\ CarAlarmSystem3!Spec
 
 =============================================================================
 \* Modification History
+\* Last modified Fri Jan 13 09:46:44 CET 2023 by marian
 \* Created Tue Jan 10 16:19:21 CET 2023 by mitch

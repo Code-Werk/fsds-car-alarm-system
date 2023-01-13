@@ -20,12 +20,13 @@ vars == <<flash, sound, now>>
 
 TypeInvariant == /\ flash \in BOOLEAN
                  /\ sound \in BOOLEAN
-                 /\ now \in AlarmRange
                  
 SafetyInvariant == \/ flash = sound
-                   \/ flash = 1 /\ sound = 0
+                   \/ /\ flash = TRUE 
+                      /\ sound = FALSE    
 
-RunningAlarmInvariant == \/ flash = 1
+Invariant == /\ TypeInvariant
+             /\ SafetyInvariant
 
 (***************************************************************************)
 (* Actions                                                                 *)
@@ -64,22 +65,19 @@ Next == \/ Activate
         \/ Deactivate
         \/ Tick
 
-SpecAlarm2 == Init /\ [][Next]_vars
-
-FairSpecAlarm2 == /\ SpecAlarm2 
-                  /\ \A r \in AlarmRange :  WF_now(Tick /\ now' > r)
+Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
-(* Verified Refinement                                                     *)
+(* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
 CarAlarm1 == INSTANCE CarAlarm1
 
-THEOREM SpecAlarm2 => /\ CarAlarm1!SpecAlarm1
-                 /\ TypeInvariant
-                 /\ SafetyInvariant
+THEOREM Spec => /\ CarAlarm1!Spec
+                /\ []Invariant
 
 =============================================================================
 \* Modification History
+\* Last modified Fri Jan 13 09:39:41 CET 2023 by marian
 \* Last modified Tue Jan 10 21:15:14 CET 2023 by mitch
 \* Created Tue Jan 10 16:19:21 CET 2023 by mitch
