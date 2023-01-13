@@ -6,7 +6,7 @@
 (* TODO *)
 (***************************************************************************)
 
-EXTENDS Naturals
+EXTENDS Integers, TLC
 
 CONSTANT ArmedDelay, AlarmDelay, MaxPinMissmatch
 ASSUME ArmedDelay \in Nat
@@ -90,7 +90,7 @@ TypeInvariant == /\ state \in STATES
                  /\ armedTimer \in ArmedRange
                  /\ alarmTimer \in AlarmRange
                  /\ missmatchCounter \in 0..MaxPinMissmatch
-                 /\ alarmTrigger \in AlarmTriggerStates \union {0}
+                 /\ alarmTrigger \in AlarmTriggerStates \union {-1}
                  
 SafetyInvariant == /\ state = Alarm => flash = TRUE
                    /\ IF state = Alarm /\ alarmTimer > 269 
@@ -114,7 +114,7 @@ Init == /\ state = OpenAndUnlocked
         /\ armedTimer = ArmedDelay
         /\ alarmTimer = AlarmDelay
         /\ missmatchCounter = 0
-        /\ alarmTrigger = 0
+        /\ alarmTrigger = -1
 
 
 (***************************************************************************)
@@ -148,13 +148,18 @@ Close_After_SilentAndOpen == /\ state  = SilentAndOpen
                              /\ isArmed' = TRUE
                              /\ UNCHANGED(timer_vars)
                              /\ UNCHANGED<<flash, sound, missmatchCounter, alarmTrigger>>
+
 Lock_After_OpenAndUnlocked == /\ state  = OpenAndUnlocked
                               /\ state' = OpenAndLocked
-                              /\ UNCHANGED<<vars_without_state>>
+                              /\ missmatchCounter' = 0
+                              /\ UNCHANGED(timer_vars)
+                              /\ UNCHANGED<<isArmed, flash, sound, alarmTrigger>>
 
 Lock_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
                                 /\ state' = ClosedAndLocked
-                                /\ UNCHANGED<<vars_without_state>>
+                                /\ missmatchCounter' = 0
+                                /\ UNCHANGED(timer_vars)
+                                /\ UNCHANGED<<isArmed, flash, sound, alarmTrigger>>
 
 Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
                                 /\ state' = OpenAndUnlocked
@@ -191,9 +196,10 @@ Unlock_After_Armed == /\ state  = Armed
 Unlock_After_Alarm == /\ state  = Alarm
                       /\ state' = OpenAndUnlocked
                       /\ alarmTimer' = AlarmDelay
+                      /\ alarmTrigger' = -1
                       /\ missmatchCounter' = 0
                       /\ CarAlarm!Deactivate
-                      /\ UNCHANGED<<isArmed, armedTimer, alarmTrigger>>
+                      /\ UNCHANGED<<isArmed, armedTimer>>
 
 Unlock_After_SilentAndOpen == /\ state  = SilentAndOpen
                               /\ state' = OpenAndUnlocked
@@ -215,6 +221,7 @@ Arming == /\ state  = ClosedAndLocked
 
 MissmatchAlarm == /\ state \in AlarmTriggerStates
                   /\ missmatchCounter = MaxPinMissmatch
+                  /\ alarmTrigger = -1
                   /\ state' = Alarm
                   /\ isArmed' = FALSE
                   /\ alarmTrigger' = state
@@ -222,19 +229,28 @@ MissmatchAlarm == /\ state \in AlarmTriggerStates
                   /\ UNCHANGED(timer_vars)
                   /\ UNCHANGED<<missmatchCounter>>
 
+
 AlarmFinished == /\ state = Alarm
                  /\ alarmTimer = 0
-                 /\ alarmTimer' = AlarmDelay
                  /\ CarAlarm!Deactivate
-                 /\ UNCHANGED<<armedTimer>>
-                 /\ IF missmatchCounter = MaxPinMissmatch
-                    THEN /\ alarmTrigger' = 0
-                         /\ IF alarmTrigger = Armed 
-                            THEN SetArmed 
-                            ELSE /\ state' = alarmTrigger
-                                 /\ UNCHANGED<<missmatchCounter, isArmed>>
-                    ELSE /\ state' = SilentAndOpen
-                         /\ UNCHANGED<<isArmed, missmatchCounter, alarmTrigger>>
+                 /\ alarmTimer' = AlarmDelay
+
+AlarmFinished_Missmatch == /\ AlarmFinished
+                           /\ alarmTrigger \in AlarmTriggerStates 
+                           /\ missmatchCounter = MaxPinMissmatch
+                           /\ alarmTrigger' = -1
+                           /\ UNCHANGED<<armedTimer>>
+                           /\ IF alarmTrigger = Armed 
+                              THEN SetArmed 
+                              ELSE /\ state' = alarmTrigger
+                                   /\ missmatchCounter' = 0
+                                   /\ UNCHANGED<<isArmed>>
+
+AlarmFinished_Open == /\ AlarmFinished
+                      /\ missmatchCounter = 0 
+                      /\ alarmTrigger = -1
+                      /\ state' = SilentAndOpen
+                      /\ UNCHANGED<<isArmed, missmatchCounter, alarmTrigger, armedTimer>>
 
 (***************************************************************************)
 (* Pin Actions                                                             *)
@@ -284,7 +300,8 @@ Next == \/ Close_After_OpenAndUnlocked
         \/ Unlock_After_Alarm
         \/ Unlock_After_SilentAndOpen
         \/ Arming
-        \/ AlarmFinished
+        \/ AlarmFinished_Missmatch
+        \/ AlarmFinished_Open
         \/ ArmingTicker
         \/ AlarmTicker
         \/ MissmatchAlarm
