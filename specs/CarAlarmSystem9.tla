@@ -51,8 +51,7 @@ VARIABLES
     alarmTimer, 
     missmatchCounter,
     alarmTrigger,
-    passengerDoors, 
-    isClosed
+    passengerDoors
 
 vars == 
     <<
@@ -64,8 +63,7 @@ vars ==
         alarmTimer,
         missmatchCounter,
         alarmTrigger,
-        passengerDoors, 
-        isClosed
+        passengerDoors
     >>
 vars_without_state == 
     <<
@@ -76,12 +74,11 @@ vars_without_state ==
         alarmTimer,
         missmatchCounter,
         alarmTrigger,
-        passengerDoors,
-        isClosed
+        passengerDoors
     >>
 
 alarm_vars == <<flash, sound, alarmTrigger, missmatchCounter>>
-door_vars == <<passengerDoors, isClosed>>
+door_vars == <<passengerDoors>>
 timer_vars == <<armedTimer, alarmTimer>>
 
 (***************************************************************************)
@@ -111,7 +108,7 @@ SafetyInvariant == /\ state = Alarm => flash = TRUE
                    /\ state /= ClosedAndLocked => armedTimer = ArmedDelay
                    /\ state /= Alarm => alarmTimer = AlarmDelay
                    /\ Doors!SafetyInvariant
-                   /\ isClosed => state \notin { OpenAndLocked, OpenAndUnlocked, SilentAndOpen }
+                   /\ Doors!AreClosed => state \notin { OpenAndLocked, OpenAndUnlocked, SilentAndOpen }
 
 Invariant == /\ TypeInvariant
              /\ SafetyInvariant
@@ -150,7 +147,7 @@ SetArmed == /\ state' = Armed
             /\ missmatchCounter' = 0
 
 TryCloseDoor(nextState) == /\ Doors!Close
-                           /\ IF isClosed' = TRUE
+                           /\ IF {pd \in passengerDoors' : pd[2] = TRUE} = {}
                               THEN state' = nextState
                               ELSE UNCHANGED<<state>>
 
@@ -169,7 +166,7 @@ Close_After_OpenAndLocked == /\ state  = OpenAndLocked
 
 Close_After_SilentAndOpen == /\ state = SilentAndOpen
                              /\ TryCloseDoor(Armed)
-                             /\ isArmed' = isClosed'
+                             /\ isArmed' = {pd \in passengerDoors' : pd[2] = TRUE} = {}
                              /\ UNCHANGED<<alarm_vars, timer_vars>>
 
 Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked

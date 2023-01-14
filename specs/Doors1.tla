@@ -6,25 +6,28 @@
 (* TODO *)
 (***************************************************************************)
 
-EXTENDS Integers, Sequences, TLC
+EXTENDS Integers, Sequences
 
 CONSTANT DoorCount
 ASSUME DoorCount \in {2,4}
 
-VARIABLES passengerDoors, isClosed
+VARIABLES passengerDoors
 
-vars == <<passengerDoors, isClosed>>
+vars == <<passengerDoors>>
 
 (***************************************************************************)
 (* Invariants                                                              *)
 (***************************************************************************)
 
+AreOpen == \E pd \in passengerDoors : pd[2] = TRUE
+AreClosed == \A pd \in passengerDoors : pd[2] = FALSE
+
 TypeInvariant == /\ \A pd \in passengerDoors :
                     /\ pd[1] \in 0..DoorCount
                     /\ pd[2] \in BOOLEAN
 
-SafetyInvariant == /\ isClosed => \A pd \in passengerDoors: pd[2] = FALSE
-                   /\ ~isClosed => \E pd \in passengerDoors: pd[2] = TRUE
+SafetyInvariant == /\ AreClosed => \A pd \in passengerDoors: pd[2] = FALSE
+                   /\ AreOpen => \E pd \in passengerDoors: pd[2] = TRUE
 
 Invariant == /\ TypeInvariant
              /\ SafetyInvariant
@@ -34,18 +37,13 @@ Invariant == /\ TypeInvariant
 (***************************************************************************)
 
 Init == /\ passengerDoors = { <<i, TRUE>> : i \in 1..DoorCount }
-        /\ isClosed = FALSE
 
 Open == /\ \E door \in {pd \in passengerDoors : pd[2] = FALSE}:
             passengerDoors' = {x \in passengerDoors : x[1] /= door[1]} \union {<<door[1], TRUE>>}
-        /\ isClosed'= FALSE
 
-Close == /\ isClosed = FALSE
+Close == /\ AreOpen
          /\ \E door \in {pd \in passengerDoors : pd[2] = TRUE}:
             passengerDoors' = {x \in passengerDoors : x[1] /= door[1]} \union {<<door[1], FALSE>>}
-         /\ IF {pd \in passengerDoors' : pd[2] = TRUE} = {}
-            THEN isClosed'=TRUE
-            ELSE UNCHANGED<<isClosed>>
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)

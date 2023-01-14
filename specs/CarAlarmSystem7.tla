@@ -8,10 +8,10 @@
 
 EXTENDS Naturals
 
-CONSTANT ArmedDelay, AlarmDelay, MaxPinMismatch
+CONSTANT ArmedDelay, AlarmDelay, MaxPinMissmatch
 ASSUME ArmedDelay \in Nat
 ASSUME AlarmDelay \in Nat
-ASSUME MaxPinMismatch \in Nat
+ASSUME MaxPinMissmatch \in Nat
 
 ArmedRange == 0..ArmedDelay
 AlarmRange == 0..AlarmDelay
@@ -42,7 +42,7 @@ VARIABLES
     sound,
     armedTimer,
     alarmTimer,
-    mismatchCounter
+    missmatchCounter
 
 vars == 
     <<
@@ -52,7 +52,7 @@ vars ==
         sound,
         armedTimer,
         alarmTimer,
-        mismatchCounter
+        missmatchCounter
     >>
 vars_without_state == 
     <<
@@ -61,7 +61,7 @@ vars_without_state ==
         sound,
         armedTimer,
         alarmTimer,
-        mismatchCounter
+        missmatchCounter
     >>
 timer_vars == <<armedTimer, alarmTimer>>
 
@@ -79,7 +79,7 @@ TypeInvariant == /\ state \in STATES
                  /\ isArmed \in BOOLEAN
                  /\ armedTimer \in ArmedRange
                  /\ alarmTimer \in AlarmRange
-                 /\ mismatchCounter \in 0..MaxPinMismatch
+                 /\ missmatchCounter \in 0..MaxPinMissmatch
                  
 SafetyInvariant == /\ state = Alarm => flash = TRUE
                    /\ IF state = Alarm /\ alarmTimer > 269 
@@ -107,7 +107,7 @@ Init == /\ state = OpenAndUnlocked
         /\ sound = FALSE
         /\ armedTimer = ArmedDelay
         /\ alarmTimer = AlarmDelay
-        /\ mismatchCounter = 0
+        /\ missmatchCounter = 0
 
 (***************************************************************************)
 (* Helper Actions                                                          *)
@@ -118,8 +118,8 @@ CheckPin(nextState) == /\ \E b \in BOOLEAN:
                           IF b = TRUE
                           THEN /\ state' = nextState
                                /\ isArmed' = FALSE
-                               /\ mismatchCounter' = 0
-                          ELSE /\ mismatchCounter' = mismatchCounter + 1
+                               /\ missmatchCounter' = 0
+                          ELSE /\ missmatchCounter' = missmatchCounter + 1
                                /\ UNCHANGED<<state, isArmed>>
 
 (***************************************************************************)
@@ -138,7 +138,7 @@ Close_After_SilentAndOpen == /\ state  = SilentAndOpen
                              /\ state' = Armed
                              /\ isArmed' = TRUE
                              /\ UNCHANGED(timer_vars)
-                             /\ UNCHANGED<<flash, sound, mismatchCounter>>
+                             /\ UNCHANGED<<flash, sound, missmatchCounter>>
 
 Lock_After_OpenAndUnlocked == /\ state  = OpenAndUnlocked
                               /\ state' = OpenAndLocked
@@ -155,26 +155,26 @@ Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
 Open_After_ClosedAndLocked == /\ state  = ClosedAndLocked
                               /\ state' = OpenAndLocked
                               /\ armedTimer' = ArmedDelay
-                              /\ UNCHANGED<<flash, sound, isArmed, alarmTimer, mismatchCounter>>
+                              /\ UNCHANGED<<flash, sound, isArmed, alarmTimer, missmatchCounter>>
 
 Open_After_Armed == /\ state  = Armed
                     /\ state' = Alarm
                     /\ isArmed' = FALSE
-                    /\ mismatchCounter' = 0
+                    /\ missmatchCounter' = 0
                     /\ CarAlarm!Activate
                     /\ UNCHANGED(timer_vars)
 
 Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked
                                 /\ state' = ClosedAndUnlocked
                                 /\ armedTimer' = ArmedDelay
-                                /\ UNCHANGED<<flash, sound, isArmed, alarmTimer, mismatchCounter>>
+                                /\ UNCHANGED<<flash, sound, isArmed, alarmTimer, missmatchCounter>>
 
 Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked
                               /\ state' = OpenAndUnlocked
                               /\ UNCHANGED<<vars_without_state>>
      
 Unlock_After_Armed == /\ state  = Armed
-                      /\ mismatchCounter < MaxPinMismatch
+                      /\ missmatchCounter < MaxPinMissmatch
                       /\ CheckPin(ClosedAndUnlocked)
                       /\ UNCHANGED(timer_vars)
                       /\ UNCHANGED<<flash, sound>>
@@ -182,7 +182,7 @@ Unlock_After_Armed == /\ state  = Armed
 Unlock_After_Alarm == /\ state  = Alarm
                       /\ state' = OpenAndUnlocked
                       /\ alarmTimer' = AlarmDelay
-                      /\ mismatchCounter' = 0
+                      /\ missmatchCounter' = 0
                       /\ CarAlarm!Deactivate
                       /\ UNCHANGED<<isArmed, armedTimer>>
 
@@ -193,7 +193,7 @@ Unlock_After_SilentAndOpen == /\ state  = SilentAndOpen
 SetArmed == /\ state' = Armed
             /\ isArmed' = TRUE
             /\ armedTimer' = ArmedDelay
-            /\ mismatchCounter' = 0
+            /\ missmatchCounter' = 0
 
 Arming == /\ state  = ClosedAndLocked
           /\ armedTimer = 0
@@ -205,22 +205,22 @@ Arming == /\ state  = ClosedAndLocked
 (***************************************************************************)
 
 MismatchAlarm == /\ state = Armed
-                  /\ mismatchCounter = MaxPinMismatch
+                  /\ missmatchCounter = MaxPinMissmatch
                   /\ state' = Alarm
                   /\ isArmed' = FALSE
                   /\ CarAlarm!Activate
                   /\ UNCHANGED(timer_vars)
-                  /\ UNCHANGED<<mismatchCounter>>
+                  /\ UNCHANGED<<missmatchCounter>>
 
 AlarmFinished == /\ state = Alarm
                  /\ alarmTimer = 0
                  /\ alarmTimer' = AlarmDelay
                  /\ CarAlarm!Deactivate
                  /\ UNCHANGED<<armedTimer>>
-                 /\ IF mismatchCounter = MaxPinMismatch
+                 /\ IF missmatchCounter = MaxPinMissmatch
                     THEN /\ SetArmed
                     ELSE /\ state' = SilentAndOpen
-                         /\ UNCHANGED<<isArmed, mismatchCounter>>
+                         /\ UNCHANGED<<isArmed, missmatchCounter>>
 
 (***************************************************************************)
 (* Timer Actions                                                           *)
@@ -230,7 +230,7 @@ ArmingTicker == /\ state = ClosedAndLocked
                 /\ armedTimer > 0
                 /\ \E d \in { n \in ArmedRange : n < armedTimer}:
                     armedTimer' = d 
-                /\ UNCHANGED<<state, isArmed, sound, flash, alarmTimer, mismatchCounter>>
+                /\ UNCHANGED<<state, isArmed, sound, flash, alarmTimer, missmatchCounter>>
 
 AlarmTicker == /\ state = Alarm
                /\ alarmTimer > 0
@@ -239,7 +239,7 @@ AlarmTicker == /\ state = Alarm
                    /\ IF d < 270
                       THEN CarAlarm!DeactivateSound
                       ELSE UNCHANGED<<sound>>
-               /\ UNCHANGED<<state, isArmed, flash, armedTimer, mismatchCounter>>
+               /\ UNCHANGED<<state, isArmed, flash, armedTimer, missmatchCounter>>
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)
