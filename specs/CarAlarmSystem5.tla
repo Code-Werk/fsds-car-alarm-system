@@ -3,25 +3,27 @@
 (***************************************************************************)
 (* Fifth refinement of the car alarm system:                               *)
 (*                                                                         *)
-(* TODO *)
+(* In this refinement we finally added one of the required timings for the car alarm system, the timeout between locking the car and it switching into an armed state. We did not add all the timings at once, so we can work out how to implement it properly.  TODO *)
+(*                                                                         *)
+(* This refinement targets Requirements 1 - 3.                             *)
 (***************************************************************************)
 
 EXTENDS Naturals
 
-CONSTANT ArmedDelay
+CONSTANT ArmedDelay             \* Time the car takes to switch into an armed state after it was locked (here: time to change the state from ClosedAndLocked to Armed)
 ASSUME ArmedDelay \in Nat
 
-ArmedRange == 0..ArmedDelay
+ArmedRange == 0..ArmedDelay     \* Range for the timer, it counts down from the max value (= ArmedDelay) to 0
 
-OpenAndUnlocked   == 0
-ClosedAndLocked   == 1
-OpenAndLocked     == 2
-ClosedAndUnlocked == 3
-Armed             == 4
-Alarm             == 5
-SilentAndOpen     == 6
+OpenAndUnlocked   == 0          \* Car is open and unlocked
+ClosedAndLocked   == 1          \* Car is closed and locked
+OpenAndLocked     == 2          \* Car is still open but already locked
+ClosedAndUnlocked == 3          \* Car is not yet closed but already locked
+Armed             == 4          \* Car alarm system is armed (which means it is locked and closed and alarm could be triggered)
+Alarm             == 5          \* Car alarm is on (which means an illegal action - car opened without unlocking - occurred in the armed state and the alarm was triggered)
+SilentAndOpen     == 6          \* Car has been in alarm (or technically still is, but no flash and sound is on) but is now waiting to return to armed or unlocked (car is closed again or unlocked)
 
-STATES == 
+STATES ==                       \* Currently possible states
     {
         OpenAndUnlocked, 
         ClosedAndLocked, 
@@ -36,12 +38,13 @@ VARIABLES state, isArmed, flash, sound, armedTimer
 
 vars == <<state, isArmed, flash, sound, armedTimer>>
 vars_without_state == <<isArmed, flash, sound, armedTimer>>
+alarm_vars == <<flash, sound>>
 
 (***************************************************************************)
 (* External Modules                                                        *)
 (***************************************************************************)
 
-CarAlarm == INSTANCE CarAlarm1 WITH flash <- flash, sound <- sound
+CarAlarm == INSTANCE CarAlarm1      \* Refinement mapping through similar var names
 
 (***************************************************************************)
 (* Invariants                                                              *)
