@@ -26,7 +26,7 @@ STATES ==                       \* Currently possible states
         ClosedAndUnlocked
     }
 
-VARIABLES state
+VARIABLES state                 \* the current state in the state diagram
 
 (***************************************************************************)
 (* Invariants                                                              *)
@@ -38,7 +38,7 @@ TypeInvariant == state \in STATES
 (* Actions                                                                 *)
 (***************************************************************************)
 
-Init == state = OpenAndUnlocked
+Init == state = OpenAndUnlocked                     \* state diagram starts in the OpenAndUnlocked state
 
 Close == /\ \/ /\ state  = OpenAndUnlocked          \* close the car
                /\ state' = ClosedAndUnlocked

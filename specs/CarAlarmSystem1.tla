@@ -33,7 +33,7 @@ TypeInvariant == state \in STATES
 (* Actions                                                                 *)
 (***************************************************************************)
 
-Init == state = OpenAndUnlocked
+Init == state = OpenAndUnlocked                         \* state diagram starts in the OpenAndUnlocked state
 
 Lock_And_Close == /\ state = OpenAndUnlocked            \* close the car and lock it
                   /\ state' = ClosedAndLocked

@@ -25,8 +25,8 @@ ASSUME SoundDuration \in Nat
 AlarmRange == 0..SoundDuration
 
 VARIABLES
-    flash,              \* flags to indicate if flash is on
-    sound,              \* flags to indicate if sound is on
+    flash,              \* flag to indicate if flash is on
+    sound,              \* flag to indicate if sound is on
     soundTimer          \* timer that counts from SoundDuration to 0
 
 vars == <<flash, sound, soundTimer>>

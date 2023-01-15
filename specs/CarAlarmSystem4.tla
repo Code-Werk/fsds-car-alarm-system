@@ -38,7 +38,11 @@ STATES ==                       \* Currently possible states
         SilentAndOpen
     }
 
-VARIABLES state, isArmed, flash, sound
+VARIABLES
+    state,                      \* the current state in the state diagram
+    isArmed,                    \* flag to indicate if the car is armed
+    flash,                      \* flag to indicate if flash is on
+    sound,                      \* flag to indicate if sound is on
 
 vars == <<state, isArmed, flash, sound>>
 alarm_vars == <<flash, sound>>
@@ -47,7 +51,7 @@ alarm_vars == <<flash, sound>>
 (* External Modules                                                        *)
 (***************************************************************************)
 
-CarAlarm == INSTANCE CarAlarm1      \* Refinement mapping through similar var names
+CarAlarm == INSTANCE CarAlarm1      \* Refinement mapping through equal var names
 
 (***************************************************************************)
 (* Invariants                                                              *)
@@ -68,9 +72,9 @@ Invariant == /\ TypeInvariant
 (* Actions                                                                 *)
 (***************************************************************************)
 
-Init == /\ state = OpenAndUnlocked
-        /\ isArmed = FALSE
-        /\ flash = FALSE
+Init == /\ state = OpenAndUnlocked                                      \* state diagram starts in the OpenAndUnlocked state
+        /\ isArmed = FALSE                                              \* the car is unarmed
+        /\ flash = FALSE                                                \* alarm indicators are off (alarm is deactivated)
         /\ sound = FALSE
 
 (***************************************************************************)

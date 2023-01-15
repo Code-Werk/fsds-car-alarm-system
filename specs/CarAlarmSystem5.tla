@@ -11,7 +11,7 @@
 EXTENDS Naturals
 
 CONSTANT ArmedDelay             \* Time the car takes to switch into an armed state after it was locked (here: time to change the state from ClosedAndLocked to Armed)
-ASSUME ArmedDelay \in Nat
+ASSUME ArmedDelay \in Nat       \* ArmedDelay is set in the TLC, 20 by requirement
 
 ArmedRange == 0..ArmedDelay     \* Range for the timer, it counts down from the max value (= ArmedDelay) to 0
 
@@ -34,7 +34,12 @@ STATES ==                       \* Currently possible states
         SilentAndOpen
     }
 
-VARIABLES state, isArmed, flash, sound, armedTimer
+VARIABLES
+    state,                      \* the current state in the state diagram
+    isArmed,                    \* flag to indicate if the car is armed
+    flash,                      \* flag to indicate if flash is on
+    sound,                      \* flag to indicate if sound is on
+    armedTimer                  \* timer that counts from ArmedDelay to 0
 
 vars == <<state, isArmed, flash, sound, armedTimer>>
 vars_without_state == <<isArmed, flash, sound, armedTimer>>
@@ -44,7 +49,7 @@ alarm_vars == <<flash, sound>>
 (* External Modules                                                        *)
 (***************************************************************************)
 
-CarAlarm == INSTANCE CarAlarm1      \* Refinement mapping through similar var names
+CarAlarm == INSTANCE CarAlarm1      \* Refinement mapping through equal var names
 
 (***************************************************************************)
 (* Invariants                                                              *)
@@ -54,10 +59,10 @@ TypeInvariant == /\ state \in STATES
                  /\ isArmed \in BOOLEAN
                  /\ armedTimer \in ArmedRange
                  
-SafetyInvariant == /\ state = Alarm => flash = TRUE
-                   /\ state = Armed
-                        => armedTimer = ArmedDelay /\ isArmed = TRUE
-                   /\ state /= ClosedAndLocked => armedTimer = ArmedDelay
+SafetyInvariant == /\ state = Alarm => flash = TRUE                         \* if car is in an alarm state (not silent!), the flash is on
+                   /\ state = Armed                                         \* if the car is in an armed state indicate that by setting the isArmed flag
+                        => armedTimer = ArmedDelay /\ isArmed = TRUE        \* the armed timer should be reset to the ArmedDelay when reaching this state
+                   /\ state /= ClosedAndLocked => armedTimer = ArmedDelay   \* the only state where the armed timer should change is ClosedAndLocked, otherwise it's set to ArmedDelay
 
 Invariant == /\ TypeInvariant
              /\ SafetyInvariant
@@ -66,9 +71,9 @@ Invariant == /\ TypeInvariant
 (* Actions                                                                 *)
 (***************************************************************************)
 
-Init == /\ state = OpenAndUnlocked
-        /\ isArmed = FALSE
-        /\ flash = FALSE
+Init == /\ state = OpenAndUnlocked                                      \* state diagram starts in the OpenAndUnlocked state
+        /\ isArmed = FALSE                                              \* the car is unarmed, timer is set to ArmedDelay
+        /\ flash = FALSE                                                \* alarm indicators are off (alarm is deactivated)
         /\ sound = FALSE
         /\ armedTimer = ArmedDelay
 
@@ -76,48 +81,48 @@ Init == /\ state = OpenAndUnlocked
 (* State Actions                                                           *)
 (***************************************************************************)
 
-Close_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
+Close_After_OpenAndUnlocked == /\ state = OpenAndUnlocked               \* Close the car from the OpenAndUnlocked state to get to ClosedAndUnlocked
                                /\ state' = ClosedAndUnlocked
                                /\ UNCHANGED<<isArmed, flash, sound, armedTimer>>
 
-Close_After_OpenAndLocked == /\ state  = OpenAndLocked
+Close_After_OpenAndLocked == /\ state  = OpenAndLocked                  \* Close the car from the OpenAndLocked state to get to ClosedAndLocked
                              /\ state' = ClosedAndLocked
                              /\ UNCHANGED<<isArmed, flash, sound, armedTimer>>
 
-Close_After_SilentAndOpen == /\ state  = SilentAndOpen
-                             /\ state' = Armed
+Close_After_SilentAndOpen == /\ state  = SilentAndOpen                  \* Close the car from the SilentAndOpen state (after an alarm was triggered but was already deactivated)
+                             /\ state' = Armed                          \* This arms the car again
                              /\ isArmed' = TRUE
                              /\ UNCHANGED<<flash, sound, armedTimer>>
 
-Lock_After_OpenAndUnlocked == /\ state  = OpenAndUnlocked
+Lock_After_OpenAndUnlocked == /\ state  = OpenAndUnlocked               \* Lock the car from the OpenAndUnlocked state to get to OpenAndLocked
                               /\ state' = OpenAndLocked
                               /\ UNCHANGED<<vars_without_state>>
 
-Lock_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
+Lock_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked           \* Lock the car from the OpenAndLocked state to get to ClosedAndLocked
                                 /\ state' = ClosedAndLocked
                                 /\ UNCHANGED<<vars_without_state>>
 
-Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
+Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked           \* Open the car from the ClosedAndUnlocked state to get to OpenAndUnlocked
                                 /\ state' = OpenAndUnlocked
                                 /\ UNCHANGED<<vars_without_state>>
 
-Open_After_ClosedAndLocked == /\ state  = ClosedAndLocked
+Open_After_ClosedAndLocked == /\ state  = ClosedAndLocked               \* Open the car from the ClosedAndLocked state to get to OpenAndLocked
                               /\ state' = OpenAndLocked
                               /\ armedTimer' = ArmedDelay
                               /\ UNCHANGED<<flash, sound, isArmed>>
 
-Open_After_Armed == /\ state  = Armed
-                    /\ state' = Alarm
+Open_After_Armed == /\ state  = Armed                                   \* Open the car from an armed state
+                    /\ state' = Alarm                                   \* this is an illegal action -> trigger alarm
                     /\ isArmed' = FALSE
                     /\ CarAlarm!Activate
                     /\ UNCHANGED<<armedTimer>>
 
-Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked
+Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked             \* Lock the car from the ClosedAndLocked state to get to ClosedAndUnlocked
                                 /\ state' = ClosedAndUnlocked
                                 /\ armedTimer' = ArmedDelay
                                 /\ UNCHANGED<<flash, sound, isArmed>>
 
-Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked
+Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked                 \* Lock the car from the OpenAndLocked state to get to OpenAndUnlocked
                               /\ state' = OpenAndUnlocked
                               /\ UNCHANGED<<vars_without_state>>
              
