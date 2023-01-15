@@ -85,7 +85,7 @@ TypeInvariant == /\ alarmSystemState \in ALARM_SYSTEM_STATES
 AlarmInvariant == /\ flash = TRUE
                   /\ IF Car!IsMaxPinMismatch
                      THEN /\ \/ Car!IsCarUnlocked
-                             \/ passengerAreaState = ClosedAndUnlocked
+                             \/ passengerAreaState = ClosedAndLocked
                      ELSE /\ ~Car!IsMaxPinMismatch
                           /\ \/ Car!AreDoorsOpen
                              \/ /\ Car!IsTrunkOpen 
@@ -228,12 +228,11 @@ Open_After_Armed == /\ alarmSystemState = Armed
                     /\ passengerAreaState = ClosedAndLocked
                     /\ alarmSystemState' = Alarm
                     /\ isArmed' = FALSE
-                    /\ mismatchCounter' = 0
+                    /\ mismatchCounter = 0
                     /\ \/ Car!OpenDoor_From_Closed
                        \/ /\ Car!IsTrunkLocked /\ Car!IsTrunkClosed
                           /\ Car!OpenTrunk
                     /\ CarAlarm!Activate
-                    \* /\ PrintT(vars)
                     /\ UNCHANGED<<timer_vars>>
 
 AlarmFinished_Open == /\ AlarmFinished
@@ -290,21 +289,21 @@ Unlock_After_SilentAndOpen == /\ alarmSystemState  = SilentAndOpen
 (***************************************************************************)
 
 MismatchAlarm == /\ Car!IsMaxPinMismatch
-                  /\ alarmSystemState \in {Armed, Unarmed}
-                  /\ alarmSystemState' = Alarm
-                  /\ isArmed' = FALSE
-                  /\ CarAlarm!Activate
-                  /\ UNCHANGED(car_vars)
-                  /\ UNCHANGED(timer_vars)
+                 /\ alarmSystemState \in {Armed, Unarmed}
+                 /\ alarmSystemState' = Alarm
+                 /\ isArmed' = FALSE
+                 /\ CarAlarm!Activate
+                 /\ UNCHANGED(car_vars)
+                 /\ UNCHANGED(timer_vars)
 
 AlarmFinished_Mismatch == /\ AlarmFinished
-                           /\ Car!IsMaxPinMismatch
-                           /\ mismatchCounter' = 0
-                           /\ IF passengerAreaState = ClosedAndLocked
-                              THEN SetArmed 
-                              ELSE /\ alarmSystemState' = Unarmed 
-                                   /\ UNCHANGED<<isArmed, armedTimer>>
-                           /\ UNCHANGED<<passengerAreaState, passengerDoors, trunkState>>
+                          /\ Car!IsMaxPinMismatch
+                          /\ mismatchCounter' = 0
+                          /\ IF passengerAreaState = ClosedAndLocked
+                             THEN SetArmed 
+                             ELSE /\ alarmSystemState' = Unarmed 
+                                  /\ UNCHANGED<<isArmed, armedTimer>>
+                          /\ UNCHANGED<<passengerAreaState, passengerDoors, trunkState>>
 
 (***************************************************************************)
 (* Timer Actions                                                           *)
