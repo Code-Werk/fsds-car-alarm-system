@@ -146,67 +146,36 @@ IncreaseMismatchOnlyInArmed == /\ ~Car!IsMaxPinMismatch
 (***************************************************************************)
 
 \* Already open door, open another door
-CarOpenDoor_Another_One == /\ alarmSystemState = Unarmed
-                           /\ Car!OpenDoor_Another_One
-                           /\ UNCHANGED<<alarm_vars, timer_vars>>
 
-CarOpenDoor_From_Closed == /\ alarmSystemState = Unarmed
-                           /\ Car!OpenDoor_From_Closed
-                           /\ armedTimer' = ArmedDelay
-                           /\ UNCHANGED<<alarm_vars, alarmTimer>>
+DefaultCarActions == /\ alarmSystemState = Unarmed
+                     /\ ~Car!IsMaxPinMismatch
+                     /\ Car!Next
+                     /\ armedTimer' = ArmedDelay
+                     /\ mismatchCounter' = 0
+                     /\ UNCHANGED<<alarm_vars, alarmTimer>>
 
-CarCloseDoor == /\ alarmSystemState = Unarmed
-                /\ Car!CloseDoor
-                /\ UNCHANGED<<alarm_vars, timer_vars>>
-
-CarOpenTrunk == /\ \/ alarmSystemState = Unarmed
-                   \/ Car!IsTrunkUnlocked
+CarOpenTrunk == /\ Car!IsTrunkUnlocked
                 /\ Car!OpenTrunk
-                /\ armedTimer' = ArmedDelay
-                /\ UNCHANGED<<alarm_vars, alarmTimer>>
 
-CarCloseTrunk == /\ \/ alarmSystemState = Unarmed
-                    \/ Car!IsTrunkUnlocked
+CarCloseTrunk == /\ Car!IsTrunkUnlocked
                  /\ Car!CloseTrunk
+ 
+CarLockTrunk ==  /\ Car!IsTrunkUnlocked
+                 /\ Car!LockTrunk
+
+CarUnlockTrunk == /\ ~Car!IsMaxPinMismatch
+                  /\ Car!UnlockTrunk
+
+ArmedTrunkActions == /\ alarmSystemState = Armed
+                     /\ \/ CarOpenTrunk
+                        \/ CarCloseTrunk
+                        \/ /\ Car!IsTrunkClosed
+                           /\ CarLockTrunk
+                        \/ CarUnlockTrunk
                  /\ UNCHANGED<<alarm_vars, timer_vars>>
 
-CarLockTrunk == /\ Car!LockTrunk
-                /\ mismatchCounter' = 0              
-                /\ UNCHANGED<<alarm_vars, timer_vars>>
-
-CarUnlockTrunk == /\ alarmSystemState = Unarmed
-                  /\ ~Car!IsMaxPinMismatch
-                  /\ IF alarmSystemState = Armed
-                     THEN UNCHANGED<<mismatchCounter>>
-                     ELSE mismatchCounter' = 0
-                  /\ Car!UnlockTrunk
-                  /\ UNCHANGED<<alarm_vars, timer_vars>>
-
-CarLockCar == /\ alarmSystemState = Unarmed
-              /\ Car!LockCar
-              /\ mismatchCounter' = 0              
-              /\ UNCHANGED<<alarm_vars, timer_vars>>
-
-CarUnlockCar == /\ alarmSystemState = Unarmed
-                /\ IncreaseMismatchOnlyInArmed
-                /\ Car!UnlockCar 
-                /\ armedTimer' = ArmedDelay
-                /\ UNCHANGED<<alarm_vars, alarmTimer>>
-
-CarSetNewPin == /\ alarmSystemState = Unarmed
-                /\ Car!SetNewPin
-                /\ UNCHANGED<<alarm_vars, timer_vars>>
-
-CarActions == \/ CarOpenDoor_Another_One
-              \/ CarOpenDoor_From_Closed
-              \/ CarCloseDoor
-              \/ CarOpenTrunk
-              \/ CarCloseTrunk
-              \/ CarLockTrunk
-              \/ CarUnlockTrunk
-              \/ CarLockCar
-              \/ CarUnlockCar
-              \/ CarSetNewPin
+CarActions == \/ DefaultCarActions
+              \/ ArmedTrunkActions
 
 (***************************************************************************)
 (* Open After Armed Actions                                                *)
@@ -230,7 +199,8 @@ Open_After_Armed == /\ alarmSystemState = Armed
                     /\ isArmed' = FALSE
                     /\ mismatchCounter = 0
                     /\ \/ Car!OpenDoor_From_Closed
-                       \/ /\ Car!IsTrunkLocked /\ Car!IsTrunkClosed
+                       \/ /\ Car!IsTrunkLocked 
+                          /\ Car!IsTrunkClosed
                           /\ Car!OpenTrunk
                     /\ CarAlarm!Activate
                     /\ UNCHANGED<<timer_vars>>
@@ -251,7 +221,7 @@ Close_After_SilentAndOpen == /\ alarmSystemState = SilentAndOpen
                              /\ IF /\ \A pd \in passengerDoors' : pd[2] = FALSE
                                    /\ trunkState' \in {ClosedAndLocked, ClosedAndUnlocked}
                                 THEN SetArmed
-                                ELSE UNCHANGED<<alarm_vars>>
+                                ELSE UNCHANGED<<alarm_vars, armedTimer>>
                              /\ UNCHANGED<<flash, sound, alarmTimer>>
 
 (***************************************************************************)

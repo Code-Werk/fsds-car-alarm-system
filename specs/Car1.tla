@@ -168,7 +168,8 @@ TrunkActions == \/ OpenTrunk
 LockCar == /\ IsCarUnlocked
            /\ PassengerArea!Lock
            /\ Trunk!Lock
-           /\ UNCHANGED<<passengerDoors, mismatchCounter>>
+           /\ mismatchCounter' = 0
+           /\ UNCHANGED<<passengerDoors>>
 
 
 UnlockCar == /\ AreDoorsLocked
