@@ -16,11 +16,15 @@ VARIABLES passengerDoors
 vars == <<passengerDoors>>
 
 (***************************************************************************)
-(* Invariants                                                              *)
+(* Guards                                                                  *)
 (***************************************************************************)
 
 AreOpen == \E pd \in passengerDoors : pd[2] = TRUE
 AreClosed == \A pd \in passengerDoors : pd[2] = FALSE
+
+(***************************************************************************)
+(* Invariants                                                              *)
+(***************************************************************************)
 
 TypeInvariant == /\ \A pd \in passengerDoors :
                     /\ pd[1] \in 0..DoorCount

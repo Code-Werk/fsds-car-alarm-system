@@ -166,7 +166,7 @@ Close_After_OpenAndLocked == /\ state  = OpenAndLocked
 
 Close_After_SilentAndOpen == /\ state = SilentAndOpen
                              /\ TryCloseDoor(Armed)
-                             /\ isArmed' = {pd \in passengerDoors' : pd[2] = TRUE} = {}
+                             /\ isArmed' = \A pd \in passengerDoors' : pd[2] = FALSE
                              /\ UNCHANGED<<alarm_vars, timer_vars>>
 
 Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked

@@ -1,0 +1,371 @@
+-------------------------- MODULE CarAlarmSystem10 --------------------------
+
+(***************************************************************************)
+(* Tenth refinement of the car alarm system:                               *)
+(*                                                                         *)
+(* TODO *)
+(***************************************************************************)
+
+EXTENDS Integers, TLC
+
+CONSTANT ArmedDelay, AlarmDelay, MaxPinMissmatch, DoorCount
+ASSUME ArmedDelay \in Nat
+ASSUME AlarmDelay \in Nat
+ASSUME MaxPinMissmatch \in Nat
+
+ArmedRange == 0..ArmedDelay
+AlarmRange == 0..AlarmDelay
+
+OpenAndUnlocked   == 0
+ClosedAndLocked   == 1
+OpenAndLocked     == 2
+ClosedAndUnlocked == 3
+
+Armed             == 4
+Alarm             == 5
+SilentAndOpen     == 6
+Unarmed           == 7
+ 
+ALARM_SYSTEM_STATES == 
+    {
+        Armed, 
+        Alarm, 
+        SilentAndOpen,
+        Unarmed
+    }
+    
+VARIABLES
+    alarmSystemState,
+    passengerAreaState, 
+    passengerDoors, 
+    trunkState,
+    missmatchCounter,
+    isArmed, 
+    flash, 
+    sound, 
+    armedTimer, 
+    alarmTimer
+
+vars == 
+    <<
+        alarmSystemState,
+        passengerAreaState, 
+        passengerDoors, 
+        trunkState,
+        missmatchCounter,
+        isArmed, 
+        flash, 
+        sound, 
+        armedTimer, 
+        alarmTimer
+    >>
+
+alarm_vars == <<alarmSystemState, flash, isArmed, sound>>
+car_vars == <<passengerAreaState, passengerDoors, trunkState, missmatchCounter>>
+timer_vars == <<armedTimer, alarmTimer>>
+
+(***************************************************************************)
+(* External Modules                                                        *)
+(***************************************************************************)
+
+Car == INSTANCE Car1
+CarAlarm == INSTANCE CarAlarm1
+
+(***************************************************************************)
+(* Invariants                                                              *)
+(***************************************************************************)
+
+TypeInvariant == /\ alarmSystemState \in ALARM_SYSTEM_STATES
+                 /\ isArmed \in BOOLEAN
+                 /\ armedTimer \in ArmedRange
+                 /\ alarmTimer \in AlarmRange
+                 /\ Car!TypeInvariant
+                 /\ CarAlarm!TypeInvariant
+
+AlarmInvariant == /\ flash = TRUE
+                  /\ IF Car!IsMaxPinMissmatch
+                     THEN /\ \/ Car!IsCarUnlocked
+                             \/ passengerAreaState = ClosedAndUnlocked
+                     ELSE /\ ~Car!IsMaxPinMissmatch
+                          /\ \/ Car!AreDoorsOpen
+                             \/ /\ Car!IsTrunkOpen 
+                                /\ Car!IsTrunkLocked
+
+
+SafetyInvariant == /\ alarmSystemState = Alarm => AlarmInvariant
+                   /\ IF alarmSystemState = Alarm /\ alarmTimer > 269 
+                        THEN sound = TRUE
+                        ELSE sound = FALSE
+                   /\ alarmSystemState = Armed => /\ armedTimer = ArmedDelay 
+                                                  /\ isArmed = TRUE
+                                                  /\ passengerAreaState = ClosedAndLocked
+                                                  /\ ~(Car!IsTrunkOpen /\ Car!IsTrunkLocked)
+                    
+                   /\ passengerAreaState /= ClosedAndLocked => armedTimer = ArmedDelay
+                   /\ alarmSystemState /= Alarm => alarmTimer = AlarmDelay
+                   /\ Car!SafetyInvariant
+                   /\ CarAlarm!SafetyInvariant
+
+Invariant == /\ TypeInvariant
+             /\ SafetyInvariant
+
+(***************************************************************************)
+(* Actions                                                                 *)
+(***************************************************************************)
+
+Init == /\ alarmSystemState = Unarmed 
+        /\ isArmed = FALSE
+        /\ flash = FALSE
+        /\ sound = FALSE
+        /\ armedTimer = ArmedDelay
+        /\ alarmTimer = AlarmDelay
+        /\ Car!Init
+
+
+(***************************************************************************)
+(* Helper Actions                                                          *)
+(* These actions need to be defined before actions that use them           *)
+(***************************************************************************)
+
+SetArmed == /\ missmatchCounter' = 0
+            /\ alarmSystemState' = Armed
+            /\ isArmed' = TRUE
+            /\ armedTimer' = ArmedDelay
+            
+AlarmFinished == /\ alarmSystemState = Alarm
+                 /\ alarmTimer = 0
+                 /\ CarAlarm!Deactivate
+                 /\ alarmTimer' = AlarmDelay
+
+(***************************************************************************)
+(* Doors Open Close Actions                                                *)
+(***************************************************************************)
+
+IncreaseMissmatchOnlyInArmed == /\ ~Car!IsMaxPinMissmatch
+                                /\ IF alarmSystemState = Armed
+                                   THEN UNCHANGED<<missmatchCounter>>
+                                   ELSE missmatchCounter' = 0
+
+CarOpenDoor_Another_One == /\ alarmSystemState = Unarmed
+                           /\ Car!OpenDoor_Another_One
+                           /\ UNCHANGED<<alarm_vars, timer_vars>>
+
+CarOpenDoor_From_Closed == /\ alarmSystemState = Unarmed
+                           /\ Car!OpenDoor_From_Closed
+                           /\ armedTimer' = ArmedDelay
+                           /\ UNCHANGED<<alarm_vars, alarmTimer>>
+
+CarCloseDoor == /\ alarmSystemState = Unarmed
+                /\ Car!CloseDoor
+                /\ UNCHANGED<<alarm_vars, timer_vars>>
+
+CarOpenTrunk == /\ \/ alarmSystemState = Unarmed
+                   \/ Car!IsTrunkUnlocked
+                /\ Car!OpenTrunk
+                /\ armedTimer' = ArmedDelay
+                /\ UNCHANGED<<alarm_vars, alarmTimer>>
+
+CarCloseTrunk == /\ \/ alarmSystemState = Unarmed
+                    \/ Car!IsTrunkUnlocked
+                 /\ Car!CloseTrunk
+                 /\ UNCHANGED<<alarm_vars, timer_vars>>
+
+CarLockTrunk == /\ Car!LockTrunk
+                /\ missmatchCounter' = 0              
+                /\ UNCHANGED<<alarm_vars, timer_vars>>
+
+CarUnlockTrunk == /\ alarmSystemState = Unarmed
+                  /\ ~Car!IsMaxPinMissmatch
+                  /\ IF alarmSystemState = Armed
+                     THEN UNCHANGED<<missmatchCounter>>
+                     ELSE missmatchCounter' = 0
+                  /\ Car!UnlockTrunk
+                  /\ UNCHANGED<<alarm_vars, timer_vars>>
+
+CarLockCar == /\ alarmSystemState = Unarmed
+              /\ Car!LockCar
+              /\ missmatchCounter' = 0              
+              /\ UNCHANGED<<alarm_vars, timer_vars>>
+
+CarUnlockCar == /\ alarmSystemState = Unarmed
+                /\ IncreaseMissmatchOnlyInArmed
+                /\ Car!UnlockCar 
+                /\ armedTimer' = ArmedDelay
+                /\ UNCHANGED<<alarm_vars, alarmTimer>>
+
+CarSetNewPin == /\ alarmSystemState = Unarmed
+                /\ Car!SetNewPin
+                /\ UNCHANGED<<alarm_vars, timer_vars>>
+
+CarActions == \/ CarOpenDoor_Another_One
+              \/ CarOpenDoor_From_Closed
+              \/ CarCloseDoor
+              \/ CarOpenTrunk
+              \/ CarCloseTrunk
+              \/ CarLockTrunk
+              \/ CarUnlockTrunk
+              \/ CarLockCar
+              \/ CarUnlockCar
+              \/ CarSetNewPin
+
+(***************************************************************************)
+(* Open After Armed Actions                                                *)
+(***************************************************************************)
+
+Arming == /\ Car!IsCarLocked 
+          /\ Car!IsCarClosed
+          /\ armedTimer = 0
+          /\ SetArmed
+          /\ UNCHANGED<<
+            passengerAreaState, 
+            passengerDoors, 
+            trunkState,
+            flash, 
+            sound, 
+            alarmTimer>>
+
+Open_After_Armed == /\ alarmSystemState = Armed
+                    /\ passengerAreaState = ClosedAndLocked
+                    /\ alarmSystemState' = Alarm
+                    /\ isArmed' = FALSE
+                    /\ missmatchCounter' = 0
+                    /\ \/ Car!OpenDoor_From_Closed
+                       \/ /\ Car!IsTrunkLocked /\ Car!IsTrunkClosed
+                          /\ Car!OpenTrunk
+                    /\ CarAlarm!Activate
+                    \* /\ PrintT(vars)
+                    /\ UNCHANGED<<timer_vars>>
+
+AlarmFinished_Open == /\ AlarmFinished
+                      /\ missmatchCounter = 0 
+                      /\ alarmSystemState' = SilentAndOpen
+                      /\ UNCHANGED<<car_vars, isArmed,  armedTimer>>
+
+Open_After_SilentAndOpen == /\ alarmSystemState = SilentAndOpen
+                            /\ \/ Car!OpenDoor_From_Closed
+                               \/ Car!OpenTrunk
+                            /\ UNCHANGED<<alarm_vars, timer_vars>>
+
+Close_After_SilentAndOpen == /\ alarmSystemState = SilentAndOpen
+                             /\ \/ Car!CloseDoor
+                                \/ Car!CloseTrunk
+                             /\ IF /\ \A pd \in passengerDoors' : pd[2] = FALSE
+                                   /\ trunkState' \in {ClosedAndLocked, ClosedAndUnlocked}
+                                THEN SetArmed
+                                ELSE UNCHANGED<<alarm_vars>>
+                             /\ UNCHANGED<<flash, sound, alarmTimer>>
+
+(***************************************************************************)
+(* State Actions                                                           *)
+(***************************************************************************)
+
+Unlock_After_Armed == /\ alarmSystemState = Armed
+                      /\ ~Car!IsMaxPinMissmatch
+                      /\ Car!UnlockCar
+                      /\ IF passengerAreaState' /= ClosedAndUnlocked
+                         THEN /\ UNCHANGED<<alarmSystemState, isArmed>>
+                         ELSE /\ alarmSystemState' = Unarmed
+                              /\ isArmed' = FALSE
+                      /\ UNCHANGED<<passengerDoors, flash, sound, timer_vars>>
+
+Unlock_After_Alarm == /\ alarmSystemState = Alarm
+                      /\ Car!UnlockCar
+                      /\ CarAlarm!Deactivate
+                      /\ alarmSystemState' = Unarmed
+                      /\ alarmTimer' = AlarmDelay
+                      /\ missmatchCounter' = 0
+                      /\ UNCHANGED<<passengerDoors, armedTimer, isArmed>>
+
+Unlock_After_SilentAndOpen == /\ alarmSystemState  = SilentAndOpen
+                              /\ alarmSystemState' = Unarmed
+                              /\ UNCHANGED<<car_vars, 
+                                            timer_vars, 
+                                            trunkState,
+                                            isArmed,
+                                            flash,
+                                            sound>>
+
+(***************************************************************************)
+(* Alarm Actions                                                           *)
+(***************************************************************************)
+
+MissmatchAlarm == /\ Car!IsMaxPinMissmatch
+                  /\ alarmSystemState \in {Armed, Unarmed}
+                  /\ alarmSystemState' = Alarm
+                  /\ isArmed' = FALSE
+                  /\ CarAlarm!Activate
+                  /\ UNCHANGED(car_vars)
+                  /\ UNCHANGED(timer_vars)
+
+AlarmFinished_Missmatch == /\ AlarmFinished
+                           /\ Car!IsMaxPinMissmatch
+                           /\ missmatchCounter' = 0
+                           /\ IF passengerAreaState = ClosedAndLocked
+                              THEN SetArmed 
+                              ELSE /\ alarmSystemState' = Unarmed 
+                                   /\ UNCHANGED<<isArmed, armedTimer>>
+                           /\ UNCHANGED<<passengerAreaState, passengerDoors, trunkState>>
+
+(***************************************************************************)
+(* Timer Actions                                                           *)
+(***************************************************************************)
+
+ArmingTicker == /\ alarmSystemState = Unarmed
+                /\ Car!IsCarClosed
+                /\ Car!IsCarLocked
+                /\ armedTimer > 0
+                /\ \E d \in { n \in ArmedRange : n < armedTimer}:
+                    armedTimer' = d 
+                /\ UNCHANGED(alarm_vars)
+                /\ UNCHANGED<< car_vars, alarm_vars, alarmTimer>>
+
+AlarmTicker == /\ alarmSystemState = Alarm
+               /\ alarmTimer > 0
+               /\ \E d \in { n \in AlarmRange : n < alarmTimer}:
+                   /\ alarmTimer' = d
+                   /\ IF d < 270
+                      THEN CarAlarm!DeactivateSound
+                      ELSE UNCHANGED<<sound>>
+               /\ UNCHANGED<<car_vars, alarmSystemState, isArmed, flash, armedTimer>>
+
+(***************************************************************************)
+(* Top-level Specification                                                 *)
+(***************************************************************************)
+
+Next == \/ CarActions
+        \/ Close_After_SilentAndOpen
+        \/ Open_After_Armed
+        \/ Unlock_After_Armed
+        \/ Unlock_After_Alarm
+        \/ Unlock_After_SilentAndOpen
+        \/ Arming
+        \/ AlarmFinished_Missmatch
+        \/ AlarmFinished_Open
+        \/ ArmingTicker
+        \/ AlarmTicker
+        \/ MissmatchAlarm
+
+Spec == Init /\ [][Next]_vars
+
+(***************************************************************************)
+(* Verified Specification and Verified Refinement                          *)
+(***************************************************************************)
+
+AlarmTrigger == IF alarmSystemState = Alarm
+                THEN IF passengerAreaState = ClosedAndLocked
+                     THEN Armed
+                     ELSE passengerAreaState
+                ELSE /\ -1
+
+
+CarAlarmSystem9 == INSTANCE CarAlarmSystem9 WITH state <- passengerAreaState, alarmTrigger <- AlarmTrigger
+
+THEOREM Spec => /\ CarAlarmSystem9!Spec
+                /\ Car!Spec
+                /\ CarAlarm!Spec
+                /\ []Invariant
+
+=============================================================================
+\* Modification History
+\* Last modified Fri Jan 13 09:48:38 CET 2023 by marian
+\* Created Tue Jan 10 16:19:21 CET 2023 by mitch
