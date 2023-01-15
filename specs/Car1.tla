@@ -1,9 +1,14 @@
 -------------------------- MODULE Car1 --------------------------
 
 (***************************************************************************)
-(* Ninth refinement of the car alarm system:                               *)
-(*                                                                         *)
-(* TODO                                                                    *)
+(* First refinement of the car system:                                     *)
+(* Module that represent a car with 2 or 4 doors and a trunk.              *)
+(* The doors and trunk can be opened and closed separately.                *)
+(* The car can also be locked and unlocked, whereby the trunk can be       *)  
+(* unlocked and opend even if the car is locked.                           *)
+(* Another functionallity of the car is to only unlock the car if the      *)
+(* correct pin is provided, otherwise a counter is increased to predefined *)
+(* a max.                                                                  *)
 (***************************************************************************)
 
 EXTENDS Integers
@@ -197,9 +202,10 @@ Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
 (* Verified Specification and Verified Refinement                          *)
-(***************************************************************************)
 
-
-THEOREM Spec => /\ []Invariant
+THEOREM Spec => /\ PassengerArea!Spec
+                /\ Trunk!Spec
+                /\ Doors!Spec
+                /\ []Invariant
 
 =============================================================================

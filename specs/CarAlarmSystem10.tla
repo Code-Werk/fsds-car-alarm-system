@@ -2,11 +2,9 @@
 
 (***************************************************************************)
 (* Tenth refinement of the car alarm system:                               *)
-(*                                                                         *)
-(* TODO *)
 (***************************************************************************)
 
-EXTENDS Integers, TLC
+EXTENDS Integers
 
 CONSTANT ArmedDelay, AlarmDelay, MaxPinMismatch, DoorCount
 ASSUME ArmedDelay \in Nat
@@ -91,16 +89,17 @@ AlarmInvariant == /\ flash = TRUE
                              \/ /\ Car!IsTrunkOpen 
                                 /\ Car!IsTrunkLocked
 
+ArmedInvariant == /\ armedTimer = ArmedDelay 
+                  /\ isArmed = TRUE
+                  /\ passengerAreaState = ClosedAndLocked
+                  /\ ~(Car!IsTrunkOpen /\ Car!IsTrunkLocked)
+                  /\ IF alarmSystemState = Alarm /\ alarmTimer > 269 
+                     THEN sound = TRUE
+                     ELSE sound = FALSE
+
 
 SafetyInvariant == /\ alarmSystemState = Alarm => AlarmInvariant
-                   /\ IF alarmSystemState = Alarm /\ alarmTimer > 269 
-                        THEN sound = TRUE
-                        ELSE sound = FALSE
-                   /\ alarmSystemState = Armed => /\ armedTimer = ArmedDelay 
-                                                  /\ isArmed = TRUE
-                                                  /\ passengerAreaState = ClosedAndLocked
-                                                  /\ ~(Car!IsTrunkOpen /\ Car!IsTrunkLocked)
-                    
+                   /\ alarmSystemState = Armed => ArmedInvariant
                    /\ passengerAreaState /= ClosedAndLocked => armedTimer = ArmedDelay
                    /\ alarmSystemState /= Alarm => alarmTimer = AlarmDelay
                    /\ Car!SafetyInvariant
@@ -137,15 +136,16 @@ AlarmFinished == /\ alarmSystemState = Alarm
                  /\ CarAlarm!Deactivate
                  /\ alarmTimer' = AlarmDelay
 
-(***************************************************************************)
-(* Doors Open Close Actions                                                *)
-(***************************************************************************)
-
 IncreaseMismatchOnlyInArmed == /\ ~Car!IsMaxPinMismatch
                                 /\ IF alarmSystemState = Armed
                                    THEN UNCHANGED<<mismatchCounter>>
                                    ELSE mismatchCounter' = 0
 
+(***************************************************************************)
+(* Doors Open Close Actions                                                *)
+(***************************************************************************)
+
+\* Already open door, open another door
 CarOpenDoor_Another_One == /\ alarmSystemState = Unarmed
                            /\ Car!OpenDoor_Another_One
                            /\ UNCHANGED<<alarm_vars, timer_vars>>
@@ -279,7 +279,6 @@ Unlock_After_SilentAndOpen == /\ alarmSystemState  = SilentAndOpen
                               /\ alarmSystemState' = Unarmed
                               /\ UNCHANGED<<car_vars, 
                                             timer_vars, 
-                                            trunkState,
                                             isArmed,
                                             flash,
                                             sound>>
@@ -303,7 +302,9 @@ AlarmFinished_Mismatch == /\ AlarmFinished
                              THEN SetArmed 
                              ELSE /\ alarmSystemState' = Unarmed 
                                   /\ UNCHANGED<<isArmed, armedTimer>>
-                          /\ UNCHANGED<<passengerAreaState, passengerDoors, trunkState>>
+                          /\ UNCHANGED<<passengerAreaState, 
+                                        passengerDoors, 
+                                        trunkState>>
 
 (***************************************************************************)
 (* Timer Actions                                                           *)
@@ -315,7 +316,6 @@ ArmingTicker == /\ alarmSystemState = Unarmed
                 /\ armedTimer > 0
                 /\ \E d \in { n \in ArmedRange : n < armedTimer}:
                     armedTimer' = d 
-                /\ UNCHANGED(alarm_vars)
                 /\ UNCHANGED<< car_vars, alarm_vars, alarmTimer>>
 
 AlarmTicker == /\ alarmSystemState = Alarm
@@ -325,7 +325,8 @@ AlarmTicker == /\ alarmSystemState = Alarm
                    /\ IF d < 270
                       THEN CarAlarm!DeactivateSound
                       ELSE UNCHANGED<<sound>>
-               /\ UNCHANGED<<car_vars, alarmSystemState, isArmed, flash, armedTimer>>
+               /\ UNCHANGED<<car_vars, alarmSystemState, 
+                             isArmed, flash, armedTimer>>
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)
@@ -357,7 +358,8 @@ AlarmTrigger == IF alarmSystemState = Alarm
                 ELSE /\ -1
 
 
-CarAlarmSystem9 == INSTANCE CarAlarmSystem9 WITH state <- passengerAreaState, alarmTrigger <- AlarmTrigger
+CarAlarmSystem9 == INSTANCE CarAlarmSystem9 
+    WITH state <- passengerAreaState, alarmTrigger <- AlarmTrigger
 
 THEOREM Spec => /\ CarAlarmSystem9!Spec
                 /\ Car!Spec

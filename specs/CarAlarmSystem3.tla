@@ -109,4 +109,5 @@ CarAlarmSystem2 == INSTANCE CarAlarmSystem2
 
 THEOREM Spec => /\ CarAlarmSystem2!Spec
                 /\ []TypeInvariant
->
+                
+=============================================================================

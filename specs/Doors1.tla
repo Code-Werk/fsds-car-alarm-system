@@ -2,10 +2,8 @@
 
 (***************************************************************************)
 (* First refinement of the doors system:                                   *)
-(*                                                                         *)
-(* TODO *)
+(* Module that represents all doors of a car in the passenger area         *)
 (***************************************************************************)
-
 EXTENDS Integers, Sequences
 
 CONSTANT DoorCount
@@ -33,8 +31,7 @@ TypeInvariant == /\ \A pd \in passengerDoors :
 SafetyInvariant == /\ AreClosed => \A pd \in passengerDoors: pd[2] = FALSE
                    /\ AreOpen => \E pd \in passengerDoors: pd[2] = TRUE
 
-Invariant == /\ TypeInvariant
-             /\ SafetyInvariant
+Invariant == /\ TypeInvariant /\ SafetyInvariant
 
 (***************************************************************************)
 (* Actions                                                                 *)
@@ -53,15 +50,13 @@ Close == /\ AreOpen
 (* Top-level Specification                                                 *)
 (***************************************************************************)
 
-Next == \/ Close
-        \/ Open
+Next == \/ Close \/ Open
 
 Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
 (* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
-
 THEOREM Spec => []Invariant
 
 =============================================================================
