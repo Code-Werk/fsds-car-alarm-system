@@ -8,9 +8,9 @@
 
 EXTENDS Integers
 
-CONSTANT DoorCount, MaxPinMissmatch
+CONSTANT DoorCount, MaxPinMismatch
 ASSUME DoorCount \in {2, 4}
-ASSUME MaxPinMissmatch \in Nat
+ASSUME MaxPinMismatch \in Nat
 
 OpenAndUnlocked    == 0
 ClosedAndLocked    == 1
@@ -29,10 +29,10 @@ VARIABLES
     passengerAreaState, 
     passengerDoors, 
     trunkState,
-    missmatchCounter
+    mismatchCounter
 
 vars_doors == <<passengerAreaState, passengerDoors>>
-vars == <<trunkState, passengerAreaState, passengerDoors, missmatchCounter>>
+vars == <<trunkState, passengerAreaState, passengerDoors, mismatchCounter>>
 
 (***************************************************************************)
 (* External Modules                                                        *)
@@ -66,7 +66,7 @@ IsCarLocked == /\ AreDoorsLocked /\ IsTrunkLocked
 IsCarOpen == /\ AreDoorsOpen /\ IsTrunkOpen
 IsCarUnlocked == /\ AreDoorsUnlocked /\ IsTrunkUnlocked
 
-IsMaxPinMissmatch == missmatchCounter >= MaxPinMissmatch
+IsMaxPinMismatch == mismatchCounter >= MaxPinMismatch
 
 (***************************************************************************)
 (* Invariants                                                              *)
@@ -74,7 +74,7 @@ IsMaxPinMissmatch == missmatchCounter >= MaxPinMissmatch
 
 TypeInvariant == /\ passengerAreaState \in STATES
                  /\ trunkState \in STATES
-                 /\ missmatchCounter \in 0..MaxPinMissmatch
+                 /\ mismatchCounter \in 0..MaxPinMismatch
                  /\ Doors!TypeInvariant
                  /\ PassengerArea!TypeInvariant
                  /\ Trunk!TypeInvariant
@@ -91,7 +91,7 @@ Invariant == /\ TypeInvariant
 Init == /\ Doors!Init
         /\ PassengerArea!Init
         /\ Trunk!Init
-        /\ missmatchCounter = 0
+        /\ mismatchCounter = 0
 
 (***************************************************************************)
 (* Helper Actions                                                          *)
@@ -101,9 +101,9 @@ Init == /\ Doors!Init
 CheckPin(action, unchanged) == /\ \E b \in BOOLEAN:
                                    IF b = TRUE
                                    THEN /\ action
-                                        /\ missmatchCounter' = 0
-                                   ELSE /\ ~IsMaxPinMissmatch 
-                                        /\ missmatchCounter' = missmatchCounter + 1
+                                        /\ mismatchCounter' = 0
+                                   ELSE /\ ~IsMaxPinMismatch 
+                                        /\ mismatchCounter' = mismatchCounter + 1
                                         /\ unchanged
 
 (***************************************************************************)
@@ -113,18 +113,18 @@ CheckPin(action, unchanged) == /\ \E b \in BOOLEAN:
 OpenDoor_From_Closed == /\ AreDoorsClosed
                         /\ PassengerArea!Open
                         /\ Doors!Open
-                        /\ UNCHANGED<<trunkState, missmatchCounter>>
+                        /\ UNCHANGED<<trunkState, mismatchCounter>>
 
 OpenDoor_Another_One == /\ AreDoorsOpen
                         /\ Doors!Open
-                        /\ UNCHANGED<<passengerAreaState, trunkState, missmatchCounter>>
+                        /\ UNCHANGED<<passengerAreaState, trunkState, mismatchCounter>>
 
 CloseDoor == /\ AreDoorsOpen
              /\ Doors!Close \*includes open check
              /\ IF {pd \in passengerDoors' : pd[2] = TRUE} = {}
                 THEN /\ PassengerArea!Close
                 ELSE /\ UNCHANGED<<passengerAreaState>>
-             /\ UNCHANGED<<trunkState, missmatchCounter>>
+             /\ UNCHANGED<<trunkState, mismatchCounter>>
 
 DoorActions == \/ OpenDoor_Another_One
                \/ OpenDoor_From_Closed
@@ -135,10 +135,10 @@ DoorActions == \/ OpenDoor_Another_One
 (***************************************************************************)
 
 OpenTrunk == /\ Trunk!Open
-             /\ UNCHANGED<<vars_doors, missmatchCounter>>
+             /\ UNCHANGED<<vars_doors, mismatchCounter>>
 
 CloseTrunk == /\ Trunk!Close
-              /\ UNCHANGED<<vars_doors, missmatchCounter>>
+              /\ UNCHANGED<<vars_doors, mismatchCounter>>
 
 \* Unlock trunk without unlocking doors 
 UnlockTrunk == /\ IsCarLocked
@@ -149,7 +149,7 @@ UnlockTrunk == /\ IsCarLocked
 LockTrunk == /\ AreDoorsLocked
              /\ IsTrunkUnlocked
              /\ Trunk!Lock
-             /\ UNCHANGED<<vars_doors, missmatchCounter>>
+             /\ UNCHANGED<<vars_doors, mismatchCounter>>
 
 TrunkActions == \/ OpenTrunk
                 \/ CloseTrunk
@@ -163,7 +163,7 @@ TrunkActions == \/ OpenTrunk
 LockCar == /\ IsCarUnlocked
            /\ PassengerArea!Lock
            /\ Trunk!Lock
-           /\ UNCHANGED<<passengerDoors, missmatchCounter>>
+           /\ UNCHANGED<<passengerDoors, mismatchCounter>>
 
 
 UnlockCar == /\ AreDoorsLocked

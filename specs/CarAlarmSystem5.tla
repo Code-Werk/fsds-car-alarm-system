@@ -134,7 +134,7 @@ Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked             \* Unloc
 
 Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked                 \* Unlock the car from the OpenAndLocked state to get to OpenAndUnlocked
                               /\ state' = OpenAndUnlocked
-                              /\ UNCHANGED<<vars_without_state>>
+                              /\ UNCHANGED(vars_without_state)
              
 Unlock_After_Armed == /\ state  = Armed                                 \* Unlock the car from an armed state to get into an unarmed state
                       /\ state' = ClosedAndUnlocked                     \* so the car can be arbitrarily unlocked/locked and opened/closed
@@ -149,7 +149,7 @@ Unlock_After_Alarm == /\ state  = Alarm                                 \* Unloc
 
 Unlock_After_SilentAndOpen == /\ state  = SilentAndOpen                 \* Similar to the Unlock_After_Alarm action, but puts the car into a valid
                               /\ state' = OpenAndUnlocked               \* state again after the alarm already turned silent, thus, the alarm was already deactivated
-                              /\ UNCHANGED<<vars_without_state>>
+                              /\ UNCHANGED(vars_without_state)
 
 Arming == /\ state  = ClosedAndLocked                                   \* car transitioning from closed and unlocked into an armed state
           /\ armedTimer = 0                                             \* the car should also show it is armed, so the flag is set to true to indicate that
