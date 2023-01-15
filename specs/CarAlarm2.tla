@@ -96,7 +96,3 @@ THEOREM Spec => /\ CarAlarm1!Spec
                 /\ []Invariant
 
 =============================================================================
-\* Modification History
-\* Last modified Fri Jan 13 09:39:41 CET 2023 by marian
-\* Last modified Tue Jan 10 21:15:14 CET 2023 by mitch
-\* Created Tue Jan 10 16:19:21 CET 2023 by mitch

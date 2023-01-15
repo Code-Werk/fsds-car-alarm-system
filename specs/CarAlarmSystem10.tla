@@ -365,6 +365,3 @@ THEOREM Spec => /\ CarAlarmSystem9!Spec
                 /\ []Invariant
 
 =============================================================================
-\* Modification History
-\* Last modified Fri Jan 13 09:48:38 CET 2023 by marian
-\* Created Tue Jan 10 16:19:21 CET 2023 by mitch

@@ -31,14 +31,17 @@ TypeInvariant == state \in STATES
 
 (***************************************************************************)
 (* Actions                                                                 *)
+(* 1. state diagram starts in the OpenAndUnlocked state                    *)
+(* 2. close the car and lock it                                            *)
+(* 3. open the car and unlock it                                           *)
 (***************************************************************************)
 
-Init == state = OpenAndUnlocked                         \* state diagram starts in the OpenAndUnlocked state
+Init == /\ state = OpenAndUnlocked                         
 
-Lock_And_Close == /\ state = OpenAndUnlocked            \* close the car and lock it
+Lock_And_Close == /\ state = OpenAndUnlocked            
                   /\ state' = ClosedAndLocked
 
-Unlock_And_Open == /\ state = ClosedAndLocked           \* open the car and unlock it
+Unlock_And_Open == /\ state = ClosedAndLocked           
                    /\ state' = OpenAndUnlocked
 
 (***************************************************************************)
@@ -57,7 +60,3 @@ Spec == Init /\ [][Next]_state
 THEOREM Spec => []TypeInvariant
 
 =============================================================================
-\* Modification History
-\* Last modified Tue Jan 10 16:01:15 CET 2023 by mitch
-\* Last modified Sat Dec 31 09:01:42 CET 2022 by marian
-\* Created Sat Dec 31 08:58:24 CET 2022 by marian

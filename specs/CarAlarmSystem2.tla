@@ -36,26 +36,31 @@ TypeInvariant == state \in STATES
                  
 (***************************************************************************)
 (* Actions                                                                 *)
+(* 1. state diagram starts in the OpenAndUnlocked state                    *)
+(* 2. close the car                                                        *)
+(* 3. lock the car                                                         *)
+(* 4. open the car                                                         *)
+(* 5. unlock the car                                                       *)
 (***************************************************************************)
 
-Init == state = OpenAndUnlocked                     \* state diagram starts in the OpenAndUnlocked state
+Init == state = OpenAndUnlocked
 
-Close == /\ \/ /\ state  = OpenAndUnlocked          \* close the car
+Close == /\ \/ /\ state  = OpenAndUnlocked
                /\ state' = ClosedAndUnlocked
             \/ /\ state  = OpenAndLocked
                /\ state' = ClosedAndLocked
 
-Lock == /\ \/ /\ state  = OpenAndUnlocked           \* lock the car
+Lock == /\ \/ /\ state  = OpenAndUnlocked
               /\ state' = OpenAndLocked
            \/ /\ state  = ClosedAndUnlocked
               /\ state' = ClosedAndLocked
 
-Open == /\ \/ /\ state  = ClosedAndUnlocked         \* open the car
+Open == /\ \/ /\ state  = ClosedAndUnlocked
               /\ state' = OpenAndUnlocked
            \/ /\ state  = ClosedAndLocked
               /\ state' = OpenAndLocked
            
-Unlock == /\ \/ /\ state  = ClosedAndLocked         \* unlock the car
+Unlock == /\ \/ /\ state  = ClosedAndLocked
                 /\ state' = ClosedAndUnlocked
              \/ /\ state  = OpenAndLocked
                 /\ state' = OpenAndUnlocked
@@ -81,7 +86,3 @@ THEOREM Spec => /\ CarAlarmSystem1!Spec
                 /\ []TypeInvariant
 
 =============================================================================
-\* Modification History
-\* Last modified Tue Jan 10 16:21:39 CET 2023 by mitch
-\* Last modified Sat Dec 31 09:02:31 CET 2022 by marian
-\* Created Sat Dec 31 09:02:11 CET 2022 by marian
