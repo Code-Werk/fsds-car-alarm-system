@@ -42,7 +42,7 @@ VARIABLES
     state,                      \* the current state in the state diagram
     isArmed,                    \* flag to indicate if the car is armed
     flash,                      \* flag to indicate if flash is on
-    sound,                      \* flag to indicate if sound is on
+    sound                       \* flag to indicate if sound is on
 
 vars == <<state, isArmed, flash, sound>>
 alarm_vars == <<flash, sound>>
@@ -121,12 +121,12 @@ Open_After_Armed == /\ state  = Armed                                   \* Open 
                     /\ isArmed' = FALSE
                     /\ CarAlarm!Activate
 
-Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked             \* Lock the car from the ClosedAndLocked state to get to ClosedAndUnlocked
+Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked             \* Unlock the car from the ClosedAndLocked state to get to ClosedAndUnlocked
                                 /\ state' = ClosedAndUnlocked
                                 /\ UNCHANGED(alarm_vars)
                                 /\ UNCHANGED<<isArmed>>
 
-Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked                 \* Lock the car from the OpenAndLocked state to get to OpenAndUnlocked
+Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked                 \* Unlock the car from the OpenAndLocked state to get to OpenAndUnlocked
                               /\ state' = OpenAndUnlocked
                               /\ UNCHANGED(alarm_vars)
                               /\ UNCHANGED<<isArmed>>
@@ -136,8 +136,8 @@ Unlock_After_Armed == /\ state  = Armed                                 \* Unloc
                       /\ isArmed' = FALSE
                       /\ UNCHANGED(alarm_vars)
 
-Unlock_After_Alarm == /\ state  = Alarm                                 \* Unlock the car while after an alarm was triggered (car in alarm state)
-                      /\ state' = OpenAndUnlocked                       \* this ends the path for an illegal action and puts the car in the OpenAndUnlocked state 
+Unlock_After_Alarm == /\ state  = Alarm                                 \* Unlock the car after an alarm was triggered (car in alarm state)
+                      /\ state' = OpenAndUnlocked                       \* this ends the path for an illegal action and puts the car in the OpenAndUnlocked state
                       /\ CarAlarm!Deactivate                            \* and deactivates the alarm
                       /\ UNCHANGED<<isArmed>>
 
