@@ -19,14 +19,14 @@
 
 EXTENDS Naturals
 
-CONSTANT SoundDuration                      \* SoundDuration set in the TLC, 30 by requirement
+CONSTANT SoundDuration                      \* SoundDuration set in the TLC, 30 sec by requirement
 ASSUME SoundDuration \in Nat
 
 AlarmRange == 0..SoundDuration
 
 VARIABLES
-    flash,              \* flags to indicate if flash is on
-    sound,              \* flags to indicate if sound is on
+    flash,              \* flag to indicate if flash is on
+    sound,              \* flag to indicate if sound is on
     soundTimer          \* timer that counts from SoundDuration to 0
 
 vars == <<flash, sound, soundTimer>>
@@ -70,7 +70,7 @@ Deactivate == /\ flash' = 0                     \* deactivate the alarm by turni
               /\ soundTimer' = 0
               /\ UNCHANGED<<soundTimer>>
 
-Tick == /\ sound = 1                            \* count down from SoundDuration to 0
+Tick == /\ sound = 1                            \* count down of the sound timer from SoundDuration to 0
         /\ \E d \in { n \in AlarmRange : n < soundTimer}:
             soundTimer' = d
         /\ UNCHANGED<<flash, sound>>
