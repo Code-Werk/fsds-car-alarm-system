@@ -169,7 +169,6 @@ Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked
              
 \* Unlock the car from an armed state to get into an unarmed state
 \* so the car can be arbitrarily unlocked/locked and opened/closed
-\* and deactivates the alarm
 Unlock_After_Armed == /\ state  = Armed
                       /\ state' = ClosedAndUnlocked
                       /\ isArmed' = FALSE
