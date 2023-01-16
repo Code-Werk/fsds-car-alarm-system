@@ -105,9 +105,21 @@ Spec == Init /\ [][Next]_state
 (* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
-CarAlarmSystem2 == INSTANCE CarAlarmSystem2
+\* action to map the new states to the corresponding states of CarAlarmSystem2
+StateMapping == IF state \in { Armed, Alarm, SilentAndOpen }
+                    THEN IF state = Armed
+                        THEN ClosedAndLocked
+                        ELSE OpenAndLocked
+                    ELSE state
 
-THEOREM Spec => /\ CarAlarmSystem2!Spec
+\* instance of the lower refinement
+CarAlarmSystem2 == INSTANCE CarAlarmSystem2 WITH state <- StateMapping
+
+\* property to check the lower refinement in the TLC
+CarAlarmSystem2Spec == /\ CarAlarmSystem2!Spec
+                       /\ CarAlarmSystem2!TypeInvariant
+
+THEOREM Spec => /\ CarAlarmSystem2Spec
                 /\ []TypeInvariant
                 
 =============================================================================

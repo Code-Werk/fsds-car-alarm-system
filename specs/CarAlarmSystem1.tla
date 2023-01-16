@@ -12,13 +12,13 @@
 (* This refinement targets Requirements 1 - 3.                             *)
 (***************************************************************************)
 
-OpenAndUnlocked == 0            \* Car is open and unlocked
-ClosedAndLocked == 1            \* Car is closed and locked
+Unlocked == 0                   \* Car is open and unlocked (OpenAndUnlocked)
+Locked   == 1                   \* Car is closed and locked (ClosedAndLocked)
 
 STATES ==                       \* Currently possible states
     {
-        OpenAndUnlocked,
-        ClosedAndLocked
+        Unlocked,
+        Locked
     }
 
 VARIABLES state                \* the current state in the state diagram
@@ -36,13 +36,13 @@ TypeInvariant == state \in STATES
 (* 3. open the car and unlock it                                           *)
 (***************************************************************************)
 
-Init == /\ state = OpenAndUnlocked                         
+Init == /\ state = Unlocked                         
 
-Lock_And_Close == /\ state = OpenAndUnlocked            
-                  /\ state' = ClosedAndLocked
+Lock_And_Close == /\ state = Unlocked            
+                  /\ state' = Locked
 
-Unlock_And_Open == /\ state = ClosedAndLocked           
-                   /\ state' = OpenAndUnlocked
+Unlock_And_Open == /\ state = Locked           
+                   /\ state' = Unlocked
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)

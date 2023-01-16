@@ -253,10 +253,22 @@ Spec == Init /\ [][Next]_vars
 (* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
+\* instance of the lower refinement
+\* the states are now similar, so no mapping is needed
 CarAlarmSystem4 == INSTANCE CarAlarmSystem4
 
-THEOREM Spec => /\ CarAlarmSystem4!Spec
-                /\ CarAlarm!Spec
+\* property to check the lower refinement in the TLC
+CarAlarmSystem4Spec == /\ CarAlarmSystem4!Spec
+                       /\ CarAlarmSystem4!SafetyInvariant
+                       /\ CarAlarmSystem4!TypeInvariant
+
+\* check that the car alarm also holds in the TLC
+CarAlarmSpec == /\ CarAlarm!Spec
+                /\ CarAlarm!SafetyInvariant
+                /\ CarAlarm!TypeInvariant
+
+THEOREM Spec => /\ CarAlarmSystem4Spec
+                /\ CarAlarmSpec
                 /\ []Invariant
 
 =============================================================================

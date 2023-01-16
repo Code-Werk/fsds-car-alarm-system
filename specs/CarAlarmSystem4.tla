@@ -195,7 +195,7 @@ SilentAlarm == /\ state = Alarm
 
 \* Turns off the sound of the car alarm module
 DeactivateSound == /\ CarAlarm!DeactivateSound
-                   /\ UNCHANGED<<state, isArmed>>   
+                   /\ UNCHANGED<<state, isArmed>>
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)
@@ -224,10 +224,21 @@ Spec == Init /\ [][Next]_vars
 (* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
+\* instance of the lower refinement
+\* the states are now similar, so no mapping is needed
 CarAlarmSystem3 == INSTANCE CarAlarmSystem3
 
-THEOREM Spec => /\ CarAlarmSystem3!Spec
-                /\ CarAlarm!Spec
+\* property to check the lower refinement in the TLC
+CarAlarmSystem3Spec == /\ CarAlarmSystem3!Spec
+                       /\ CarAlarmSystem3!TypeInvariant
+
+\* check that the car alarm also holds in the TLC
+CarAlarmSpec == /\ CarAlarm!Spec
+                /\ CarAlarm!SafetyInvariant
+                /\ CarAlarm!TypeInvariant
+
+THEOREM Spec => /\ CarAlarmSystem3Spec
+                /\ CarAlarmSpec
                 /\ []Invariant
 
 =============================================================================

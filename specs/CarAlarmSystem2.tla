@@ -80,9 +80,20 @@ Spec == Init /\ [][Next]_state
 (* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
-CarAlarmSystem1 == INSTANCE CarAlarmSystem1
+\* action to map the two unlocked states to the single unlock state of CarAlarmSystem1
+\* and the two locked state to the single locked state of CarAlarmSystem1
+StateMapping == IF state \in { OpenAndUnlocked, ClosedAndUnlocked }
+                    THEN OpenAndUnlocked
+                    ELSE ClosedAndLocked
 
-THEOREM Spec => /\ CarAlarmSystem1!Spec
+\* instance of the lower refinement
+CarAlarmSystem1 == INSTANCE CarAlarmSystem1 WITH state <- StateMapping
+
+\* property to check the lower refinement in the TLC
+CarAlarmSystem1Spec == /\ CarAlarmSystem1!Spec
+                       /\ CarAlarmSystem1!TypeInvariant
+
+THEOREM Spec => /\ CarAlarmSystem1Spec
                 /\ []TypeInvariant
 
 =============================================================================

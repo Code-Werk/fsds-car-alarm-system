@@ -327,7 +327,6 @@ AlarmTrigger == IF alarmSystemState = Alarm
                      ELSE passengerAreaState
                 ELSE /\ -1
 
-
 CarAlarmSystem9 == INSTANCE CarAlarmSystem9 
     WITH state <- passengerAreaState, alarmTrigger <- AlarmTrigger
 

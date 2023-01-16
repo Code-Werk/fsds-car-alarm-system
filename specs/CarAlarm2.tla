@@ -22,7 +22,7 @@ EXTENDS Naturals
 CONSTANT SoundDuration                      \* SoundDuration set in the TLC, 30 sec by requirement
 ASSUME SoundDuration \in Nat
 
-AlarmRange == 0..SoundDuration
+SoundRange == 0..SoundDuration
 
 VARIABLES
     flash,              \* flag to indicate if flash is on
@@ -37,7 +37,7 @@ vars == <<flash, sound, soundTimer>>
 
 TypeInvariant == /\ flash \in BOOLEAN
                  /\ sound \in BOOLEAN
-                 /\ soundTimer \in SoundDuration
+                 /\ soundTimer \in SoundRange
                  
 SafetyInvariant == \/ flash = sound             \* sound and flash are either both on or both of
                    \/ /\ flash = TRUE           \* or we are in the alarm state where sound is deactivated
@@ -50,28 +50,28 @@ Invariant == /\ TypeInvariant
 (* Actions                                                                 *)
 (***************************************************************************)
 
-Init == /\ flash = 0                           \* alarm is deactivated in the beginning
-        /\ sound = 0
+Init == /\ flash = FALSE                            \* alarm is deactivated in the beginning
+        /\ sound = FALSE
         /\ soundTimer = 0
 
-Activate == /\ flash = 0                        \* activate the alarm by turning on the flash and sound
-            /\ flash' = 1
-            /\ sound' = 1
+Activate == /\ flash  = FALSE                       \* activate the alarm by turning on the flash and sound
+            /\ flash' = TRUE
+            /\ sound' = TRUE
             /\ soundTimer' = SoundDuration
 
-DeactivateSound == /\ soundTimer = 0            \* deactivate the alarm sound
-                   /\ flash  = 1                \* once the sound timer reaches 0
-                   /\ sound  = 1
-                   /\ sound' = 0
+DeactivateSound == /\ soundTimer = 0                \* deactivate the alarm sound
+                   /\ flash  = TRUE                 \* once the sound timer reaches 0
+                   /\ sound  = TRUE
+                   /\ sound' = FALSE
                    /\ UNCHANGED<<flash, soundTimer>>
 
-Deactivate == /\ flash' = 0                     \* deactivate the alarm by turning off the flash and sound
-              /\ sound' = 0
+Deactivate == /\ flash' = FALSE                     \* deactivate the alarm by turning off the flash and sound
+              /\ sound' = FALSE
               /\ soundTimer' = 0
               /\ UNCHANGED<<soundTimer>>
 
-Tick == /\ sound = 1                            \* count down of the sound timer from SoundDuration to 0
-        /\ \E d \in { n \in AlarmRange : n < soundTimer}:
+Tick == /\ sound = TRUE                             \* count down of the sound timer from SoundDuration to 0
+        /\ \E d \in { n \in SoundRange : n < soundTimer}:
             soundTimer' = d
         /\ UNCHANGED<<flash, sound>>
     
@@ -90,9 +90,16 @@ Spec == Init /\ [][Next]_vars
 (* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
+\* instance of the lower refinement
+\* the variables are similar, so no mapping is needed
 CarAlarm1 == INSTANCE CarAlarm1
 
-THEOREM Spec => /\ CarAlarm1!Spec
+\* property to check the lower refinement in the TLC
+CarAlarm1Spec == /\ CarAlarm1!Spec
+                 /\ CarAlarm1!SafetyInvariant
+                 /\ CarAlarm1!TypeInvariant
+
+THEOREM Spec => /\ CarAlarm1Spec
                 /\ []Invariant
 
 =============================================================================
