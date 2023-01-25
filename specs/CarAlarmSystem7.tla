@@ -348,10 +348,52 @@ Spec == Init /\ [][Next]_vars
 (* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
-CarAlarmSystem6 == INSTANCE CarAlarmSystem6
+\* History variable
+StateProp == 
 
-THEOREM Spec => /\ CarAlarmSystem6!Spec
-                /\ CarAlarm!Spec
+\* action to map the two unlocked states to the single unlock state of CarAlarmSystem1
+\* and the two locked state to the single locked state of CarAlarmSystem1
+StateMapping == IF state = Armed /\ isArmed = TRUE
+                    THEN IF mismatchCounter = 0
+                             THEN SilentAndOpen
+                            \*  ELSE IF mismatchCounter <= MaxPinMismatch
+                            \*         THEN Armed
+                                    ELSE Armed
+                    ELSE state
+                    \* ELSE IF mismatchCounter <= MaxPinMismatch /\ isArmed = TRUE
+                    \*          THEN ClosedAndUnlocked
+                    \*          ELSE state
+                
+                    \* THEN IF mismatchCounter = MaxPinMismatch
+                    \*     THEN state
+                    \*     ELSE Armed
+                    \* ELSE state
+
+    \* IF mismatchCounter = MaxPinMismatch
+    \*                 THEN 
+    \*                 ELSE 
+    \*                     THEN 
+                    \* THEN IF mismatchCounter <= MaxPinMismatch 
+                    \*      THEN { Armed, Alarm, ClosedAndUnlocked }
+                    \*      ELSE state
+                    \* ELSE state
+
+\* instance of the lower refinement
+\* the states are now similar, so no mapping is needed
+CarAlarmSystem6 == INSTANCE CarAlarmSystem6 WITH state <- StateMapping
+
+\* property to check the lower refinement in the TLC
+CarAlarmSystem6Spec == /\ CarAlarmSystem6!Spec
+                       /\ CarAlarmSystem6!SafetyInvariant
+                       /\ CarAlarmSystem6!TypeInvariant
+
+\* check that the car alarm also holds in the TLC
+CarAlarmSpec == /\ CarAlarm!Spec
+                /\ CarAlarm!SafetyInvariant
+                /\ CarAlarm!TypeInvariant
+
+THEOREM Spec => /\ CarAlarmSystem6Spec
+                /\ CarAlarmSpec
                 /\ []Invariant
 
 =============================================================================
