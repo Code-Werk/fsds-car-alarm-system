@@ -150,6 +150,8 @@ Init == /\ state = OpenAndUnlocked
 (* These actions need to be defined before actions that use them           *)
 (***************************************************************************)
 
+\* Helper action that is called to non-deterministically check if a sent pin matches
+\* and so can unlock the car or if the pin is incorrect
 CheckPin(nextState) == /\ \E b \in BOOLEAN:
                           IF b = TRUE
                               THEN /\ state' = nextState
@@ -158,6 +160,7 @@ CheckPin(nextState) == /\ \E b \in BOOLEAN:
                               ELSE /\ mismatchCounter' = mismatchCounter + 1
                                    /\ UNCHANGED<<state, isArmed>>
 
+\* Helper action that sets the car into an armed state
 SetArmed == /\ state' = Armed
             /\ isArmed' = TRUE
             /\ armedTimer' = ArmedDelay
@@ -248,7 +251,7 @@ Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked
 \* so the car can be arbitrarily unlocked/locked and opened/closed
 \* for this action we need to verify the pin when unlocking, which is only possible
 \* until the mismatchCounter reaches the MaxPinMismatch number
-Unlock_After_Armed == /\ state  = Armed
+Unlock_After_Armed == /\ state = Armed
                       /\ mismatchCounter < MaxPinMismatch
                       /\ CheckPin(ClosedAndUnlocked)
                       /\ UNCHANGED(alarm_vars)
@@ -377,7 +380,7 @@ Spec == Init /\ [][Next]_all_vars
 (***************************************************************************)
 
 \* instance of the lower refinement
-\* the states are now similar, so no mapping is needed
+\* the states and other vars are similar, so no mapping is needed
 CarAlarmSystem6 == INSTANCE CarAlarmSystem6
 
 \* property to check the lower refinement in the TLC

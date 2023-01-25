@@ -277,7 +277,7 @@ Spec == Init /\ [][Next]_vars
 (***************************************************************************)
 
 \* instance of the lower refinement
-\* the states are now similar, so no mapping is needed
+\* the states and other vars are similar, so no mapping is needed
 CarAlarmSystem5 == INSTANCE CarAlarmSystem5
 
 \* property to check the lower refinement in the TLC
