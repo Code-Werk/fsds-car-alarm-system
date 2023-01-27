@@ -15,7 +15,7 @@
 (* pin matches or not, not what the pin is exactly.                        *)
 (***************************************************************************)
 
-EXTENDS Integers
+EXTENDS Integers,TLC
 
 CONSTANT
     ArmedDelay,                 \* Time the car takes to switch into an armed state after 
@@ -72,11 +72,11 @@ VARIABLES
     sound,                      \* flag to indicate if sound is on
     armedTimer,                 \* timer that counts from ArmedDelay to 0
     alarmTimer,                 \* timer that counts from AlarmDelay to 0
-    mismatchCounter             \* tracks how many wrong pins were sent while in an armed state
+    mismatchCounter,             \* tracks how many wrong pins were sent while in an armed state
                                 \* or to change the pin in an unlocked state
     alarmTrigger,               \* variable to keep track of the state that triggered a mismatch alarm
                                 \* so we can return to it later (-1 if there is no alarm or not a mismatch alarm)
-    will_return_to_trigger,     \* auxiliary (prophecy) variable to distinguish between a finished
+    will_return_to_armed,     \* auxiliary (prophecy) variable to distinguish between a finished
                                 \* normal alarm and a finished mismatch alarm
                                 \* (the first goes to SilentAndOpen, the latter goes back to armed)
     increased_change_mismatch   \* TODO
@@ -105,7 +105,7 @@ vars_without_state ==
 alarm_vars == <<flash, sound>>
 pin_vars == <<alarmTrigger, mismatchCounter>>
 timer_vars == <<armedTimer, alarmTimer>>
-aux_vars   == <<increased_change_mismatch, will_return_to_trigger>>
+aux_vars   == <<increased_change_mismatch, will_return_to_armed>>
 all_vars   == <<vars, aux_vars>>
 
 (***************************************************************************)
@@ -124,7 +124,7 @@ TypeInvariant == /\ state \in STATES
                  /\ alarmTimer \in AlarmRange
                  /\ mismatchCounter \in 0..MaxPinMismatch
                  /\ alarmTrigger \in AlarmTriggerStates \union {-1}
-                 /\ will_return_to_trigger \in BOOLEAN
+                 /\ will_return_to_armed \in BOOLEAN
                  /\ increased_change_mismatch \in BOOLEAN
 
 \* if the alarm is on, sound and flash should be on for the first 30 secs (alarm timer range: 270 - 300)
@@ -160,7 +160,7 @@ Init == /\ state = OpenAndUnlocked
         /\ alarmTimer = AlarmDelay
         /\ mismatchCounter = 0
         /\ alarmTrigger = -1
-        /\ will_return_to_trigger = FALSE
+        /\ will_return_to_armed = FALSE
         /\ increased_change_mismatch = FALSE
 
 (***************************************************************************)
@@ -219,7 +219,7 @@ Lock_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                               /\ UNCHANGED(timer_vars)
                               /\ UNCHANGED(alarm_vars)
                               /\ UNCHANGED<<isArmed, alarmTrigger>>
-                              /\ UNCHANGED<<will_return_to_trigger>>
+                              /\ UNCHANGED<<will_return_to_armed>>
 
 \* Lock the car from the OpenAndLocked state to get to ClosedAndLocked
 \* We are resetting the mismatch count here, since we are moving into a locked state
@@ -230,7 +230,7 @@ Lock_After_ClosedAndUnlocked == /\ state = ClosedAndUnlocked
                                 /\ UNCHANGED(timer_vars)
                                 /\ UNCHANGED(alarm_vars)
                                 /\ UNCHANGED<<isArmed, alarmTrigger>>
-                                /\ UNCHANGED<<will_return_to_trigger>>
+                                /\ UNCHANGED<<will_return_to_armed>>
 
 \* Open the car from the ClosedAndUnlocked state to get to OpenAndUnlocked
 Open_After_ClosedAndUnlocked == /\ state = ClosedAndUnlocked
@@ -297,17 +297,14 @@ Unlock_After_Armed == /\ state = Armed
 \* we assume that this unlock is done via the physical method (key turned in lock) and we
 \* ignore wireless unlocks
 Unlock_After_Alarm == /\ state = Alarm
-                      /\ IF alarmTrigger = -1
-                             THEN /\ state' = OpenAndUnlocked
-                                  /\ UNCHANGED<<isArmed, armedTimer>>
-                             ELSE IF alarmTrigger = Armed
-                                      THEN SetArmed
-                                      ELSE /\ state' = alarmTrigger
-                                           /\ UNCHANGED<<isArmed, armedTimer>>
+                      /\ IF alarmTrigger = ClosedAndUnlocked
+                             THEN state' = ClosedAndUnlocked
+                             ELSE state' = OpenAndUnlocked
                       /\ alarmTimer' = AlarmDelay
                       /\ alarmTrigger' = -1
                       /\ mismatchCounter' = 0
                       /\ CarAlarm!Deactivate
+                      /\ UNCHANGED<<isArmed, armedTimer>>
                       /\ UNCHANGED(aux_vars)
 
 \* Similar to the Unlock_After_Alarm action, but puts the car into a valid
@@ -359,13 +356,14 @@ AlarmFinished_Mismatch == /\ AlarmFinished
                           /\ alarmTrigger \in AlarmTriggerStates 
                           /\ mismatchCounter = MaxPinMismatch
                           /\ alarmTrigger' = -1
-                          /\ will_return_to_trigger' = TRUE
-                          /\ UNCHANGED<<armedTimer>>
+                          /\ UNCHANGED<<armedTimer, increased_change_mismatch, will_return_to_armed>>
                           /\ IF alarmTrigger = Armed
-                                THEN SetArmed
+                                THEN /\ SetArmed
+                                     /\ will_return_to_armed' = TRUE
                                 ELSE /\ state' = alarmTrigger
                                      /\ mismatchCounter' = 0
-                                     /\ UNCHANGED<<isArmed>>
+                                     /\ will_return_to_armed' = FALSE
+                                     /\ UNCHANGED<<isArmed, will_return_to_armed>>
 
 \* the car alarm was active (sound for 20 secs, flashing for 300 secs) for 5 mins
 \* and not (correctly) unlocked in the meantime, so we go to SilentAndOpen since the
@@ -373,10 +371,11 @@ AlarmFinished_Mismatch == /\ AlarmFinished
 AlarmFinished_Open == /\ AlarmFinished
                       /\ mismatchCounter = 0
                       /\ alarmTrigger = -1
+                      /\ will_return_to_armed = FALSE
                       /\ state' = SilentAndOpen
-                      /\ will_return_to_trigger' = FALSE
+                      /\ will_return_to_armed' = FALSE
                       /\ UNCHANGED(pin_vars)
-                      /\ UNCHANGED<<isArmed, armedTimer>>
+                      /\ UNCHANGED<<isArmed, armedTimer, increased_change_mismatch>>
 
 (***************************************************************************)
 (* Pin Actions                                                             *)
@@ -396,7 +395,7 @@ SetNewPin == /\ state \in { OpenAndUnlocked, ClosedAndUnlocked }
              /\ UNCHANGED(alarm_vars)
              /\ UNCHANGED(timer_vars)
              /\ UNCHANGED<<alarmTrigger>>
-             /\ UNCHANGED<<will_return_to_trigger>>
+             /\ UNCHANGED<<will_return_to_armed>>
 
 (***************************************************************************)
 (* Timer Actions                                                           *)
@@ -465,12 +464,31 @@ MismatchMapping == IF increased_change_mismatch = TRUE
                        THEN 0
                        ELSE mismatchCounter
 
+StateMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
+                   THEN alarmTrigger
+                   ELSE  state
+
+FlashMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
+                   THEN FALSE
+                   ELSE flash
+
+SoundMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
+                   THEN FALSE
+                   ELSE sound
+
+AlarmTickerMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
+                         THEN AlarmDelay
+                         ELSE alarmTimer
+
 \* TODO check why triggering the alarm from set new pin fails CAS7
 
 \* instance of the lower refinement
 CarAlarmSystem7 == INSTANCE CarAlarmSystem7
     WITH mismatchCounter <- MismatchMapping,
-         will_return_to_armed <- will_return_to_trigger 
+         state <- StateMapping,
+         flash <- FlashMapping,
+         sound <- SoundMapping,
+         alarmTimer <- AlarmTickerMapping
 
 \* property to check the lower refinement in the TLC
 CarAlarmSystem7Spec == /\ CarAlarmSystem7!Spec
