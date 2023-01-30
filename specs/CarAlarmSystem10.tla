@@ -4,6 +4,8 @@
 (* Tenth refinement of the car alarm system:                               *)
 (*                                                                         *)
 (* TODO *)
+(*                                                                         *)
+(* This refinement targets Requirements 6 and 7.                           *)
 (***************************************************************************)
 
 EXTENDS Integers

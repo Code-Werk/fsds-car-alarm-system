@@ -13,6 +13,8 @@
 (* new variable alarmTrigger is introduced. Checking the pin uses the same *)
 (* non-deterministic action as before, since we still only care about if a *)
 (* pin matches or not, not what the pin is exactly.                        *)
+(*                                                                         *)
+(* This refinement targets Requirement 5.                                  *)
 (***************************************************************************)
 
 EXTENDS Integers,TLC
@@ -72,14 +74,16 @@ VARIABLES
     sound,                      \* flag to indicate if sound is on
     armedTimer,                 \* timer that counts from ArmedDelay to 0
     alarmTimer,                 \* timer that counts from AlarmDelay to 0
-    mismatchCounter,             \* tracks how many wrong pins were sent while in an armed state
+    mismatchCounter,            \* tracks how many wrong pins were sent while in an armed state
                                 \* or to change the pin in an unlocked state
     alarmTrigger,               \* variable to keep track of the state that triggered a mismatch alarm
                                 \* so we can return to it later (-1 if there is no alarm or not a mismatch alarm)
-    will_return_to_armed,     \* auxiliary (prophecy) variable to distinguish between a finished
+    will_return_to_armed,       \* auxiliary (prophecy) variable to distinguish between a finished
                                 \* normal alarm and a finished mismatch alarm
                                 \* (the first goes to SilentAndOpen, the latter goes back to armed)
-    increased_change_mismatch   \* TODO
+    increased_change_mismatch   \* auxiliary (history) variable to check if a mismatch occurred when trying to change the pin
+                                \* (= the counter was increased) or the change was successful; if the counter was increased, the lower
+                                \* refinement needs to do a stuttering step, unless an alarm was triggered (max count reached)
 
 vars == 
     <<
@@ -103,7 +107,7 @@ vars_without_state ==
         alarmTrigger
     >>
 alarm_vars == <<flash, sound>>
-pin_vars == <<alarmTrigger, mismatchCounter>>
+pin_vars   == <<alarmTrigger, mismatchCounter>>
 timer_vars == <<armedTimer, alarmTimer>>
 aux_vars   == <<increased_change_mismatch, will_return_to_armed>>
 all_vars   == <<vars, aux_vars>>
@@ -152,6 +156,7 @@ Invariant == /\ TypeInvariant
 \* alarm indicators are off (alarm is deactivated) and alarm timer is set to AlarmDelay
 \* the mismatch counter starts at 0
 \* alarm trigger starts with a no alarm value
+\* aux vars are initialized accordingly
 Init == /\ state = OpenAndUnlocked
         /\ isArmed = FALSE
         /\ flash = FALSE
@@ -251,7 +256,7 @@ Open_After_ClosedAndLocked == /\ state = ClosedAndLocked
 
 \* Open the car from an armed state
 \* this is an illegal action -> trigger alarm
-\* the alarm was triggered my an unauthorised open, so reset the mismatch counter
+\* the alarm was triggered my an unauthorized open, so reset the mismatch counter
 Open_After_Armed == /\ state = Armed
                     /\ state' = Alarm
                     /\ isArmed' = FALSE
@@ -291,8 +296,10 @@ Unlock_After_Armed == /\ state = Armed
                       /\ UNCHANGED<<alarmTrigger>>
 
 \* Unlock the car after an alarm was triggered (car in alarm state)
-\* this ends the path for an illegal action and puts the car in the OpenAndUnlocked state,
-\* deactivates the alarm and resets the alarm timer and the mismatch counter
+\* This ends the path for an illegal action and puts the car in the OpenAndUnlocked state,
+\* if the alarm was an unauthorized open or unlock mismatch, or into the alarm trigger state
+\* when the alarm was triggered by a change pin mismatch;
+\* additionally, it deactivates the alarm and resets the alarm timer and the mismatch counter
 \* (= reset cause of the alarm)
 \* we assume that this unlock is done via the physical method (key turned in lock) and we
 \* ignore wireless unlocks
@@ -309,6 +316,7 @@ Unlock_After_Alarm == /\ state = Alarm
 
 \* Similar to the Unlock_After_Alarm action, but puts the car into a valid
 \* state again after the alarm already turned silent, thus, the alarm was already deactivated
+\* this is only possible after an unauthorized open alarm was triggered
 Unlock_After_SilentAndOpen == /\ state = SilentAndOpen
                               /\ state' = OpenAndUnlocked
                               /\ UNCHANGED<<vars_without_state>>
@@ -356,18 +364,19 @@ AlarmFinished_Mismatch == /\ AlarmFinished
                           /\ alarmTrigger \in AlarmTriggerStates 
                           /\ mismatchCounter = MaxPinMismatch
                           /\ alarmTrigger' = -1
-                          /\ UNCHANGED<<armedTimer, increased_change_mismatch, will_return_to_armed>>
+                          /\ UNCHANGED(aux_vars)
+                          /\ UNCHANGED<<armedTimer>>
                           /\ IF alarmTrigger = Armed
                                 THEN /\ SetArmed
                                      /\ will_return_to_armed' = TRUE
                                 ELSE /\ state' = alarmTrigger
                                      /\ mismatchCounter' = 0
                                      /\ will_return_to_armed' = FALSE
-                                     /\ UNCHANGED<<isArmed, will_return_to_armed>>
+                                     /\ UNCHANGED<<isArmed>>
 
 \* the car alarm was active (sound for 20 secs, flashing for 300 secs) for 5 mins
 \* and not (correctly) unlocked in the meantime, so we go to SilentAndOpen since the
-\* alarm was due to an unauthorised open
+\* alarm was due to an unauthorized open
 AlarmFinished_Open == /\ AlarmFinished
                       /\ mismatchCounter = 0
                       /\ alarmTrigger = -1
@@ -384,7 +393,7 @@ AlarmFinished_Open == /\ AlarmFinished
 \* Action that allows changing the wireless key pin
 \* This is possible in an unlocked state and requires the old and the new pin
 \* to be provided
-\* If the old (= current) pin is provided wrongly for three times, a mismatch alarm
+\* If the old (= current) pin is provided incorrectly for three times, a mismatch alarm
 \* will be triggered
 SetNewPin == /\ state \in { OpenAndUnlocked, ClosedAndUnlocked }
              /\ mismatchCounter < MaxPinMismatch
@@ -458,29 +467,31 @@ Spec == Init /\ [][Next]_all_vars
 (* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
-\* action to map the mismatch counter (that is now changed somewhere else as well)
+\* action to map the mismatch counter (that is now changed in the unlocked states as well)
 \* to the higher abstraction mismatch counter
 MismatchMapping == IF increased_change_mismatch = TRUE
                        THEN 0
                        ELSE mismatchCounter
 
+\* action to map the state variable value to the higher abstraction one
 StateMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
                    THEN alarmTrigger
-                   ELSE  state
+                   ELSE state
 
+\* action to map the flash variable value to the higher abstraction one
 FlashMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
                    THEN FALSE
                    ELSE flash
 
+\* action to map the sound variable value to the higher abstraction one
 SoundMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
                    THEN FALSE
                    ELSE sound
 
+\* action to map the alarm timer variable value to the higher abstraction one
 AlarmTickerMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
                          THEN AlarmDelay
                          ELSE alarmTimer
-
-\* TODO check why triggering the alarm from set new pin fails CAS7
 
 \* instance of the lower refinement
 CarAlarmSystem7 == INSTANCE CarAlarmSystem7

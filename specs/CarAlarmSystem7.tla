@@ -8,11 +8,11 @@
 (* when a correct pin is sent. In armed, the alarm should be triggered when*)
 (* a wrong pin is provided for three times. This behavior was implemented  *)
 (* here. Now there are two slightly different alarm states - mismatch and  *)
-(* unauthorised open. They can both be deactivated via a physical unlock   *)
+(* unauthorized open. They can both be deactivated via a physical unlock   *)
 (* (physically turn key, no wireless unlocking possible), or they leave    *)
 (* automatically after 5 mins (either into SilentAndOpen or back to Armed).*)
 (*                                                                         *)
-(* This refinement targets Requirements 4.                                 *)
+(* This refinement targets Requirement 4.                                  *)
 (***************************************************************************)
 
 EXTENDS Naturals
@@ -68,7 +68,7 @@ VARIABLES
     mismatchCounter,            \* tracks how many wrong pins were sent while in an armed state
     will_return_to_armed        \* auxiliary (prophecy) variable to distinguish between a finished
                                 \* normal alarm and a finished mismatch alarm
-                                \* (the first goes to SilentAndOpen, the latter goes back to armed)
+                                \* (the first goes to SilentAndOpen, the latter goes back to Armed)
 
 vars ==
     <<
@@ -136,6 +136,7 @@ Invariant == /\ TypeInvariant
 \* the car is unarmed, armed timer is set to ArmedDelay
 \* alarm indicators are off (alarm is deactivated) and alarm timer is set to AlarmDelay
 \* the mismatch counter starts at 0
+\* aux vars are initialized accordingly
 Init == /\ state = OpenAndUnlocked
         /\ isArmed = FALSE
         /\ flash = FALSE
@@ -222,7 +223,7 @@ Open_After_ClosedAndLocked == /\ state  = ClosedAndLocked
 
 \* Open the car from an armed state
 \* this is an illegal action -> trigger alarm
-\* the alarm was triggered my an unauthorised open, so reset the mismatch counter
+\* the alarm was triggered my an unauthorized open, so reset the mismatch counter
 Open_After_Armed == /\ state  = Armed
                     /\ state' = Alarm
                     /\ isArmed' = FALSE
@@ -274,6 +275,7 @@ Unlock_After_Alarm == /\ state  = Alarm
 
 \* Similar to the Unlock_After_Alarm action, but puts the car into a valid
 \* state again after the alarm already turned silent, thus, the alarm was already deactivated
+\* this is only possible after an unauthorized open alarm was triggered
 Unlock_After_SilentAndOpen == /\ state  = SilentAndOpen
                               /\ state' = OpenAndUnlocked
                               /\ UNCHANGED(vars_without_state)
@@ -307,7 +309,10 @@ MismatchAlarm == /\ state = Armed
 
 \* the car alarm was active (sound for 20 secs, flashing for 300 secs) for 5 mins
 \* and not (correctly) unlocked in the meantime, so we go to SilentAndOpen if the
-\* alarm was due to an unauthorised open or to Armed if it was a mismatch alarm
+\* alarm was due to an unauthorized open or to Armed if it was a mismatch alarm
+\* we also set the prophecy will_return_to_armed variable, so the transitions are
+\* distinct and we can refinement check it (the less abstract refinement only knows
+\* the way to SilentAndOpen to get out of the alarm after a timeout)
 AlarmFinished == /\ state = Alarm
                  /\ alarmTimer = 0
                  /\ alarmTimer' = AlarmDelay

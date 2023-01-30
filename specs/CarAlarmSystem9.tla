@@ -231,7 +231,7 @@ Open_After_ClosedAndLocked == /\ state = ClosedAndLocked
 
 \* Open the car from an armed state
 \* this is an illegal action -> trigger alarm
-\* the alarm was triggered my an unauthorised open, so reset the mismatch counter
+\* the alarm was triggered my an unauthorized open, so reset the mismatch counter
 Open_After_Armed == /\ state = Armed
                     /\ state' = Alarm
                     /\ isArmed' = FALSE
@@ -371,7 +371,7 @@ AlarmFinished_Mismatch == /\ AlarmFinished
 
 \* the car alarm was active (sound for 20 secs, flashing for 300 secs) for 5 mins
 \* and not (correctly) unlocked in the meantime, so we go to SilentAndOpen since the
-\* alarm was due to an unauthorised open
+\* alarm was due to an unauthorized open
 AlarmFinished_Open == /\ AlarmFinished
                       /\ mismatchCounter = 0 
                       /\ alarmTrigger = -1
