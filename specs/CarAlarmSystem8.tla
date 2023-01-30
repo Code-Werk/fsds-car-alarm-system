@@ -60,11 +60,10 @@ STATES ==                       \* Currently possible states
         SilentAndOpen
     }
 
-AlarmTriggerStates ==           \* States that can trigger a mismatch alarm
+AlarmTriggerStates ==           \* States that can trigger a change mismatch alarm
     {
         OpenAndUnlocked,
-        ClosedAndUnlocked,
-        Armed
+        ClosedAndUnlocked
     }
 
 VARIABLES
@@ -74,16 +73,11 @@ VARIABLES
     sound,                      \* flag to indicate if sound is on
     armedTimer,                 \* timer that counts from ArmedDelay to 0
     alarmTimer,                 \* timer that counts from AlarmDelay to 0
-    mismatchCounter,            \* tracks how many wrong pins were sent while in an armed state
+    changeMismatchCounter,      \* tracks how many wrong pins were sent to change the pin in an unlocked state
+    unlockMismatchCounter,      \* tracks how many wrong pins were sent while in an armed state
                                 \* or to change the pin in an unlocked state
-    alarmTrigger,               \* variable to keep track of the state that triggered a mismatch alarm
+    alarmTrigger                \* variable to keep track of the state that triggered a mismatch alarm
                                 \* so we can return to it later (-1 if there is no alarm or not a mismatch alarm)
-    will_return_to_armed,       \* auxiliary (prophecy) variable to distinguish between a finished
-                                \* normal alarm and a finished mismatch alarm
-                                \* (the first goes to SilentAndOpen, the latter goes back to armed)
-    increased_change_mismatch   \* auxiliary (history) variable to check if a mismatch occurred when trying to change the pin
-                                \* (= the counter was increased) or the change was successful; if the counter was increased, the lower
-                                \* refinement needs to do a stuttering step, unless an alarm was triggered (max count reached)
 
 vars == 
     <<
@@ -93,8 +87,9 @@ vars ==
         sound,
         armedTimer,
         alarmTimer,
-        mismatchCounter,
-        alarmTrigger
+        alarmTrigger,
+        changeMismatchCounter,
+        unlockMismatchCounter
     >>
 vars_without_state == 
     <<
@@ -103,14 +98,13 @@ vars_without_state ==
         sound,
         armedTimer,
         alarmTimer,
-        mismatchCounter,
+        changeMismatchCounter,
+        unlockMismatchCounter,
         alarmTrigger
     >>
 alarm_vars == <<flash, sound>>
-pin_vars   == <<alarmTrigger, mismatchCounter>>
+pin_vars   == <<alarmTrigger, changeMismatchCounter, unlockMismatchCounter>>
 timer_vars == <<armedTimer, alarmTimer>>
-aux_vars   == <<increased_change_mismatch, will_return_to_armed>>
-all_vars   == <<vars, aux_vars>>
 
 (***************************************************************************)
 (* External Modules                                                        *)
@@ -126,10 +120,9 @@ TypeInvariant == /\ state \in STATES
                  /\ isArmed \in BOOLEAN
                  /\ armedTimer \in ArmedRange
                  /\ alarmTimer \in AlarmRange
-                 /\ mismatchCounter \in 0..MaxPinMismatch
+                 /\ unlockMismatchCounter \in 0..MaxPinMismatch
                  /\ alarmTrigger \in AlarmTriggerStates \union {-1}
-                 /\ will_return_to_armed \in BOOLEAN
-                 /\ increased_change_mismatch \in BOOLEAN
+                 /\ changeMismatchCounter \in 0..MaxPinMismatch
 
 \* if the alarm is on, sound and flash should be on for the first 30 secs (alarm timer range: 270 - 300)
 \* afterwards, only the flash should be on and the sound off
@@ -143,6 +136,8 @@ SafetyInvariant == /\ state = Alarm => flash = TRUE
                    /\ state = Armed => armedTimer = ArmedDelay /\ isArmed = TRUE
                    /\ state /= ClosedAndLocked => armedTimer = ArmedDelay
                    /\ state /= Alarm => alarmTimer = AlarmDelay
+                   /\ changeMismatchCounter > 0 => state \in { Alarm, OpenAndUnlocked, ClosedAndUnlocked }
+                   /\ unlockMismatchCounter > 0 => state \in { Alarm, Armed }
 
 Invariant == /\ TypeInvariant
              /\ SafetyInvariant
@@ -163,10 +158,9 @@ Init == /\ state = OpenAndUnlocked
         /\ sound = FALSE
         /\ armedTimer = ArmedDelay
         /\ alarmTimer = AlarmDelay
-        /\ mismatchCounter = 0
+        /\ changeMismatchCounter = 0
+        /\ unlockMismatchCounter = 0
         /\ alarmTrigger = -1
-        /\ will_return_to_armed = FALSE
-        /\ increased_change_mismatch = FALSE
 
 (***************************************************************************)
 (* Helper Actions                                                          *)
@@ -175,19 +169,21 @@ Init == /\ state = OpenAndUnlocked
 
 \* Helper action that is called to non-deterministically check if a sent pin matches
 \* and so can unlock the car or change the pin, or if the pin is incorrect
-CheckPin(nextState) == /\ \E b \in BOOLEAN:
-                          IF b = TRUE
-                              THEN /\ state' = nextState
-                                   /\ isArmed' = FALSE
-                                   /\ mismatchCounter' = 0
-                              ELSE /\ mismatchCounter' = mismatchCounter + 1
-                                   /\ UNCHANGED<<state, isArmed>>
+CheckPin(nextState, mismatchVar) == 
+    /\ \E b \in BOOLEAN:
+        IF b = TRUE
+            THEN /\ state' = nextState
+                 /\ isArmed' = FALSE
+                 /\ mismatchVar' = 0
+            ELSE /\ mismatchVar' = mismatchVar + 1
+                 /\ UNCHANGED<<state, isArmed>>
+
 
 \* Helper action that sets the car into an armed state
 SetArmed == /\ state' = Armed
             /\ isArmed' = TRUE
             /\ armedTimer' = ArmedDelay
-            /\ mismatchCounter' = 0
+            /\ unlockMismatchCounter' = 0
 
 (***************************************************************************)
 (* State Actions                                                           *)
@@ -197,13 +193,11 @@ SetArmed == /\ state' = Armed
 Close_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                                /\ state' = ClosedAndUnlocked
                                /\ UNCHANGED(vars_without_state)
-                               /\ UNCHANGED(aux_vars)
 
 \* Close the car from the OpenAndLocked state to get to ClosedAndLocked
 Close_After_OpenAndLocked == /\ state = OpenAndLocked
                              /\ state' = ClosedAndLocked
                              /\ UNCHANGED(vars_without_state)
-                             /\ UNCHANGED(aux_vars)
 
 \* Close the car from the SilentAndOpen state (after an alarm was triggered but was already deactivated)
 \* This arms the car again
@@ -213,35 +207,35 @@ Close_After_SilentAndOpen == /\ state = SilentAndOpen
                              /\ UNCHANGED(alarm_vars)
                              /\ UNCHANGED(timer_vars)
                              /\ UNCHANGED(pin_vars)
-                             /\ UNCHANGED(aux_vars)
 
 \* Lock the car from the OpenAndUnlocked state to get to OpenAndLocked
 \* We are resetting the mismatch count here, since we are moving into a locked state
 Lock_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                               /\ state' = OpenAndLocked
-                              /\ mismatchCounter' = 0
-                              /\ increased_change_mismatch' = FALSE
+                              /\ changeMismatchCounter' = 0
                               /\ UNCHANGED(timer_vars)
                               /\ UNCHANGED(alarm_vars)
-                              /\ UNCHANGED<<isArmed, alarmTrigger>>
-                              /\ UNCHANGED<<will_return_to_armed>>
+                              /\ UNCHANGED<<
+                                 isArmed, 
+                                 alarmTrigger, 
+                                 unlockMismatchCounter>>
 
 \* Lock the car from the OpenAndLocked state to get to ClosedAndLocked
 \* We are resetting the mismatch count here, since we are moving into a locked state
 Lock_After_ClosedAndUnlocked == /\ state = ClosedAndUnlocked
                                 /\ state' = ClosedAndLocked
-                                /\ mismatchCounter' = 0
-                                /\ increased_change_mismatch' = FALSE
+                                /\ changeMismatchCounter' = 0
                                 /\ UNCHANGED(timer_vars)
                                 /\ UNCHANGED(alarm_vars)
-                                /\ UNCHANGED<<isArmed, alarmTrigger>>
-                                /\ UNCHANGED<<will_return_to_armed>>
+                                /\ UNCHANGED<<
+                                   isArmed, 
+                                   alarmTrigger, 
+                                   unlockMismatchCounter>>
 
 \* Open the car from the ClosedAndUnlocked state to get to OpenAndUnlocked
 Open_After_ClosedAndUnlocked == /\ state = ClosedAndUnlocked
                                 /\ state' = OpenAndUnlocked
                                 /\ UNCHANGED(vars_without_state)
-                                /\ UNCHANGED(aux_vars)
 
 \* Open the car from the ClosedAndLocked state to get to OpenAndLocked
 \* reset the timer to ArmedDelay, since we are not counting down anymore in this state
@@ -251,7 +245,6 @@ Open_After_ClosedAndLocked == /\ state = ClosedAndLocked
                               /\ armedTimer' = ArmedDelay
                               /\ UNCHANGED(alarm_vars)
                               /\ UNCHANGED(pin_vars)
-                              /\ UNCHANGED(aux_vars)
                               /\ UNCHANGED<<isArmed, alarmTimer>>
 
 \* Open the car from an armed state
@@ -260,11 +253,10 @@ Open_After_ClosedAndLocked == /\ state = ClosedAndLocked
 Open_After_Armed == /\ state = Armed
                     /\ state' = Alarm
                     /\ isArmed' = FALSE
-                    /\ mismatchCounter' = 0
+                    /\ unlockMismatchCounter' = 0
                     /\ CarAlarm!Activate
                     /\ UNCHANGED(timer_vars)
-                    /\ UNCHANGED(aux_vars)
-                    /\ UNCHANGED<<alarmTrigger>>
+                    /\ UNCHANGED<<alarmTrigger, changeMismatchCounter>>
 
 \* Lock the car from the ClosedAndLocked state to get to ClosedAndUnlocked
 \* reset the timer to ArmedDelay, since we are not counting down anymore in this state
@@ -274,26 +266,23 @@ Unlock_After_ClosedAndLocked == /\ state = ClosedAndLocked
                                 /\ armedTimer' = ArmedDelay
                                 /\ UNCHANGED(alarm_vars)
                                 /\ UNCHANGED(pin_vars)
-                                /\ UNCHANGED(aux_vars)
                                 /\ UNCHANGED<<isArmed, alarmTimer>>
 
 \* Unlock the car from the OpenAndLocked state to get to OpenAndUnlocked
 Unlock_After_OpenAndLocked == /\ state = OpenAndLocked
                               /\ state' = OpenAndUnlocked
                               /\ UNCHANGED(vars_without_state)
-                              /\ UNCHANGED(aux_vars)
 
 \* Unlock the car from an armed state to get into an unarmed state
 \* so the car can be arbitrarily unlocked/locked and opened/closed
 \* for this action we need to verify the pin when unlocking, which is only possible
-\* until the mismatchCounter reaches the MaxPinMismatch number
+\* until the unlockMismatchCounter reaches the MaxPinMismatch number
 Unlock_After_Armed == /\ state = Armed
-                      /\ mismatchCounter < MaxPinMismatch
-                      /\ CheckPin(ClosedAndUnlocked)
+                      /\ unlockMismatchCounter < MaxPinMismatch
+                      /\ CheckPin(ClosedAndUnlocked, unlockMismatchCounter)
                       /\ UNCHANGED(alarm_vars)
                       /\ UNCHANGED(timer_vars)
-                      /\ UNCHANGED(aux_vars)
-                      /\ UNCHANGED<<alarmTrigger>>
+                      /\ UNCHANGED<<alarmTrigger, changeMismatchCounter>>
 
 \* Unlock the car after an alarm was triggered (car in alarm state)
 \* This ends the path for an illegal action and puts the car in the OpenAndUnlocked state,
@@ -303,24 +292,48 @@ Unlock_After_Armed == /\ state = Armed
 \* (= reset cause of the alarm)
 \* we assume that this unlock is done via the physical method (key turned in lock) and we
 \* ignore wireless unlocks
-Unlock_After_Alarm == /\ state = Alarm
-                      /\ IF alarmTrigger = ClosedAndUnlocked
-                             THEN state' = ClosedAndUnlocked
-                             ELSE state' = OpenAndUnlocked
-                      /\ alarmTimer' = AlarmDelay
-                      /\ alarmTrigger' = -1
-                      /\ mismatchCounter' = 0
-                      /\ CarAlarm!Deactivate
-                      /\ UNCHANGED<<isArmed, armedTimer>>
-                      /\ UNCHANGED(aux_vars)
+
+Unlock_After_OpenAlarm == /\ state  = Alarm
+                          /\ changeMismatchCounter = 0
+                          /\ unlockMismatchCounter = 0
+                          /\ state' = OpenAndUnlocked
+                          /\ alarmTimer' = AlarmDelay
+                          /\ CarAlarm!Deactivate
+                          /\ UNCHANGED(pin_vars)
+                          /\ UNCHANGED<<isArmed, armedTimer>>
+
+Unlock_After_ChangeMismatchAlarm == /\ state  = Alarm
+                                    /\ changeMismatchCounter = MaxPinMismatch
+                                    /\ unlockMismatchCounter = 0
+                                    /\ state' = alarmTrigger
+                                    /\ alarmTimer' = AlarmDelay
+                                    /\ changeMismatchCounter' = 0
+                                    /\ alarmTrigger' = -1
+                                    /\ CarAlarm!Deactivate
+                                    /\ UNCHANGED<<
+                                       isArmed, 
+                                       armedTimer, 
+                                       unlockMismatchCounter>>
+
+Unlock_After_UnlockMismatchAlarm == /\ state  = Alarm
+                                    /\ unlockMismatchCounter = MaxPinMismatch
+                                    /\ changeMismatchCounter = 0
+                                    /\ state' = ClosedAndUnlocked
+                                    /\ alarmTimer' = AlarmDelay
+                                    /\ unlockMismatchCounter' = 0
+                                    /\ CarAlarm!Deactivate
+                                    /\ UNCHANGED<<
+                                       isArmed, 
+                                       armedTimer, 
+                                       alarmTrigger,
+                                       changeMismatchCounter>>
 
 \* Similar to the Unlock_After_Alarm action, but puts the car into a valid
 \* state again after the alarm already turned silent, thus, the alarm was already deactivated
 \* this is only possible after an unauthorized open alarm was triggered
 Unlock_After_SilentAndOpen == /\ state = SilentAndOpen
                               /\ state' = OpenAndUnlocked
-                              /\ UNCHANGED<<vars_without_state>>
-                              /\ UNCHANGED(aux_vars)
+                              /\ UNCHANGED(vars_without_state)
 
 \* car transitioning from closed and unlocked into an armed state
 \* the car should also show it is armed, so the flag is set to true to indicate that
@@ -329,26 +342,34 @@ Arming == /\ state = ClosedAndLocked
           /\ armedTimer = 0
           /\ SetArmed
           /\ UNCHANGED(alarm_vars)
-          /\ UNCHANGED(aux_vars)
-          /\ UNCHANGED<<alarmTimer, alarmTrigger>>
+          /\ UNCHANGED<<alarmTimer, alarmTrigger, changeMismatchCounter>>
 
 (***************************************************************************)
 (* Alarm Actions                                                           *)
 (***************************************************************************)
 
 \* action that triggers the car alarm after there were too many unlock attempts with
-\* an invalid pin (mismatchCounter reached MaxPinMismatch)
+\* an invalid pin (unlockMismatchCounter reached MaxPinMismatch)
 \* this can occur if the car wrong pins are sent to unlock the car or to change the pin
-MismatchAlarm == /\ state \in AlarmTriggerStates
-                 /\ mismatchCounter = MaxPinMismatch
-                 /\ alarmTrigger = -1
-                 /\ state' = Alarm
-                 /\ isArmed' = FALSE
-                 /\ alarmTrigger' = state
-                 /\ CarAlarm!Activate
-                 /\ UNCHANGED(timer_vars)
-                 /\ UNCHANGED(aux_vars)
-                 /\ UNCHANGED<<mismatchCounter>>
+ChangeMismatchAlarm == /\ state \in AlarmTriggerStates
+                       /\ changeMismatchCounter = MaxPinMismatch
+                       /\ alarmTrigger = -1
+                       /\ alarmTrigger' = state 
+                       /\ state' = Alarm
+                       /\ CarAlarm!Activate
+                       /\ UNCHANGED(timer_vars)
+                       /\ UNCHANGED<<
+                          changeMismatchCounter, 
+                          isArmed, 
+                          unlockMismatchCounter>>
+
+UnlockMismatchAlarm == /\ state = Armed
+                       /\ unlockMismatchCounter = MaxPinMismatch
+                       /\ state' = Alarm
+                       /\ isArmed' = FALSE
+                       /\ CarAlarm!Activate
+                       /\ UNCHANGED(timer_vars)
+                       /\ UNCHANGED(pin_vars)
 
 \* common action between both methods to exit an alarm after 5 mins of being
 \* active without proper unlocking
@@ -357,34 +378,35 @@ AlarmFinished == /\ state = Alarm
                  /\ CarAlarm!Deactivate
                  /\ alarmTimer' = AlarmDelay
 
+
 \* the car alarm was active (sound for 20 secs, flashing for 300 secs) for 5 mins
 \* and not (correctly) unlocked in the meantime, so we go to the originating state
 \* since the alarm was due to too many pin mismatches
-AlarmFinished_Mismatch == /\ AlarmFinished
-                          /\ alarmTrigger \in AlarmTriggerStates 
-                          /\ mismatchCounter = MaxPinMismatch
-                          /\ alarmTrigger' = -1
-                          /\ UNCHANGED(aux_vars)
-                          /\ UNCHANGED<<armedTimer>>
-                          /\ IF alarmTrigger = Armed
-                                THEN /\ SetArmed
-                                     /\ will_return_to_armed' = TRUE
-                                ELSE /\ state' = alarmTrigger
-                                     /\ mismatchCounter' = 0
-                                     /\ will_return_to_armed' = FALSE
-                                     /\ UNCHANGED<<isArmed>>
+AlarmFinished_ChangeMismatchAlarm == /\ AlarmFinished
+                                     /\ alarmTrigger \in AlarmTriggerStates 
+                                     /\ changeMismatchCounter = MaxPinMismatch
+                                     /\ alarmTrigger' = -1
+                                     /\ state' = alarmTrigger
+                                     /\ changeMismatchCounter' = 0
+                                     /\ UNCHANGED<<isArmed, unlockMismatchCounter, armedTimer>>
+
+\* the car alarm was active (sound for 20 secs, flashing for 300 secs) for 5 mins
+\* and not (correctly) unlocked in the meantime, so we go to the originating state
+\* since the alarm was due to too many pin mismatches
+AlarmFinished_UnlockMismatch == /\ AlarmFinished
+                                /\ unlockMismatchCounter = MaxPinMismatch
+                                /\ SetArmed
+                                /\ UNCHANGED<<armedTimer,alarmTrigger, changeMismatchCounter>>
 
 \* the car alarm was active (sound for 20 secs, flashing for 300 secs) for 5 mins
 \* and not (correctly) unlocked in the meantime, so we go to SilentAndOpen since the
 \* alarm was due to an unauthorized open
 AlarmFinished_Open == /\ AlarmFinished
-                      /\ mismatchCounter = 0
-                      /\ alarmTrigger = -1
-                      /\ will_return_to_armed = FALSE
+                      /\ changeMismatchCounter = 0
+                      /\ unlockMismatchCounter = 0
                       /\ state' = SilentAndOpen
-                      /\ will_return_to_armed' = FALSE
                       /\ UNCHANGED(pin_vars)
-                      /\ UNCHANGED<<isArmed, armedTimer, increased_change_mismatch>>
+                      /\ UNCHANGED<<isArmed, armedTimer>>
 
 (***************************************************************************)
 (* Pin Actions                                                             *)
@@ -395,16 +417,12 @@ AlarmFinished_Open == /\ AlarmFinished
 \* to be provided
 \* If the old (= current) pin is provided incorrectly for three times, a mismatch alarm
 \* will be triggered
-SetNewPin == /\ state \in { OpenAndUnlocked, ClosedAndUnlocked }
-             /\ mismatchCounter < MaxPinMismatch
-             /\ CheckPin(state)
-             /\ IF mismatchCounter' /= mismatchCounter
-                    THEN increased_change_mismatch' = TRUE
-                    ELSE increased_change_mismatch' = FALSE
+SetNewPin == /\ state \in AlarmTriggerStates
+             /\ changeMismatchCounter < MaxPinMismatch
+             /\ CheckPin(state, changeMismatchCounter)
              /\ UNCHANGED(alarm_vars)
              /\ UNCHANGED(timer_vars)
-             /\ UNCHANGED<<alarmTrigger>>
-             /\ UNCHANGED<<will_return_to_armed>>
+             /\ UNCHANGED<<alarmTrigger, unlockMismatchCounter>>
 
 (***************************************************************************)
 (* Timer Actions                                                           *)
@@ -417,9 +435,8 @@ ArmingTicker == /\ state = ClosedAndLocked
                 /\ \E d \in { n \in ArmedRange : n < armedTimer}:
                     armedTimer' = d
                 /\ UNCHANGED(alarm_vars)
-                /\ UNCHANGED(aux_vars)
-                /\ UNCHANGED<<state, isArmed, alarmTimer, alarmTrigger>>
-                /\ UNCHANGED<<mismatchCounter>>
+                /\ UNCHANGED(pin_vars)
+                /\ UNCHANGED<<state, isArmed, alarmTimer>>
 
 \* count down of the alarm timer from AlarmDelay to 0
 \* this is only possible while the car is in the ClosedAndLocked state
@@ -433,7 +450,6 @@ AlarmTicker == /\ state = Alarm
                           THEN CarAlarm!DeactivateSound
                           ELSE UNCHANGED<<sound>>
                /\ UNCHANGED(pin_vars)
-               /\ UNCHANGED(aux_vars)
                /\ UNCHANGED<<state, isArmed, flash, armedTimer>>
 
 (***************************************************************************)
@@ -451,51 +467,51 @@ Next == \/ Close_After_OpenAndUnlocked
         \/ Unlock_After_ClosedAndLocked
         \/ Unlock_After_OpenAndLocked
         \/ Unlock_After_Armed
-        \/ Unlock_After_Alarm
+        \/ Unlock_After_OpenAlarm
+        \/ Unlock_After_ChangeMismatchAlarm
+        \/ Unlock_After_UnlockMismatchAlarm
         \/ Unlock_After_SilentAndOpen
         \/ Arming
-        \/ AlarmFinished_Mismatch
+        \/ AlarmFinished_ChangeMismatchAlarm
+        \/ AlarmFinished_UnlockMismatch
         \/ AlarmFinished_Open
         \/ ArmingTicker
         \/ AlarmTicker
-        \/ MismatchAlarm
+        \/ ChangeMismatchAlarm
+        \/ UnlockMismatchAlarm
         \/ SetNewPin
 
-Spec == Init /\ [][Next]_all_vars
+Spec == Init /\ [][Next]_vars
 
 (***************************************************************************)
 (* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
-\* action to map the mismatch counter (that is now changed in the unlocked states as well)
-\* to the higher abstraction mismatch counter
-MismatchMapping == IF increased_change_mismatch = TRUE
-                       THEN 0
-                       ELSE mismatchCounter
+IsChangePinMissmatchAlarm == changeMismatchCounter = MaxPinMismatch /\ state = Alarm
 
 \* action to map the state variable value to the higher abstraction one
-StateMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
+StateMapping == IF IsChangePinMissmatchAlarm
                    THEN alarmTrigger
                    ELSE state
 
 \* action to map the flash variable value to the higher abstraction one
-FlashMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
+FlashMapping == IF IsChangePinMissmatchAlarm
                    THEN FALSE
                    ELSE flash
 
 \* action to map the sound variable value to the higher abstraction one
-SoundMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
+SoundMapping == IF IsChangePinMissmatchAlarm
                    THEN FALSE
                    ELSE sound
 
 \* action to map the alarm timer variable value to the higher abstraction one
-AlarmTickerMapping == IF increased_change_mismatch = TRUE /\ state = Alarm
+AlarmTickerMapping == IF IsChangePinMissmatchAlarm
                          THEN AlarmDelay
                          ELSE alarmTimer
 
 \* instance of the lower refinement
 CarAlarmSystem7 == INSTANCE CarAlarmSystem7
-    WITH mismatchCounter <- MismatchMapping,
+    WITH mismatchCounter <- unlockMismatchCounter,
          state <- StateMapping,
          flash <- FlashMapping,
          sound <- SoundMapping,
