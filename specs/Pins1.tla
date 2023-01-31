@@ -31,11 +31,39 @@ vars ==
 (* Accessible outside to ease guard usage for the module if instantiated   *)
 (***************************************************************************)
 
+\* Guard that is true if any of the passed counters has reached the max value
+IsMaxMismatch(counters) == \E counter \in counters : counter[2] >= MaxPinMismatch
+
+\* Guard that is true if all of the counters have mismatch value 0
+IsCountersNoMismatch(counters) == \A counter \in counters : counter[2] = 0
+
+\* Group of guards that allow to check if a given mismatch type has reached
+\* the max value
+IsChangeMaxMismatch == /\ IsMaxMismatch(changeMismatchCounters)
+IsUnlockMaxMismatch == /\ IsMaxMismatch(unlockMismatchCounters)
+IsTrunkMaxMismatch == /\ IsMaxMismatch(trunkUnlockMismatchCounters)
+
+\* Guard that is true if any of the mismatch types have reached the max value
+IsAnyMaxMismatch == \/ IsChangeMaxMismatch
+                    \/ IsUnlockMaxMismatch
+                    \/ IsTrunkMaxMismatch
+
+\* Group of guards that allow to check if a given mismatch type has mismatch value 0
+IsChangeNoMismatch == /\ IsCountersNoMismatch(changeMismatchCounters)
+IsUnlockNoMismatch == /\ IsCountersNoMismatch(unlockMismatchCounters)
+IsTrunkNoMismatch == /\ IsCountersNoMismatch(trunkUnlockMismatchCounters)
+
+\* Group of guards that allow to check if all mismatch types have mismatch value 0
+IsNoMismatch == /\ IsChangeNoMismatch
+                /\ IsUnlockNoMismatch
+                /\ IsTrunkNoMismatch
 
 (***************************************************************************)
 (* Invariants                                                              *)
 (***************************************************************************)
 
+\* check that the number of counters is equivalent to the numbers of keys/pins
+\* first value should be the pin, then the mismatch counter
 CounterTypeInvariant(set) == 
                  /\ Cardinality(set) = MaxPins
                  /\ \A counter \in set: 
@@ -50,11 +78,12 @@ TypeInvariant == /\ CounterTypeInvariant(changeMismatchCounters)
 (* Actions                                                                 *)
 (***************************************************************************)
 
+\* TODO
+Init == /\ changeMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
+        /\ unlockMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
+        /\ trunkUnlockMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
+
 ResetCounters(counters) == counters' = { <<i,0>> : i \in 1..MaxPins}
-
-IsMaxMismatch(counters) == \E counter \in counters : counter[2] >= MaxPinMismatch
-
-IsCountersNoMismatch(counters) == \A counter \in counters : counter[2] = 0
 
 CheckPin(action, counters, unchanged) == 
     /\ ~ IsMaxMismatch(counters)
@@ -76,30 +105,9 @@ CheckUnlockMismatchCounter(action, unchanged) ==
 CheckTrunkUnlockMismatchCounters(action, unchanged) == 
     /\ CheckPin(action, trunkUnlockMismatchCounters, unchanged)
 
-IsChangeMaxMismatch == /\ IsMaxMismatch(changeMismatchCounters)
-IsUnlockMaxMismatch == /\ IsMaxMismatch(unlockMismatchCounters)
-IsTrunkMaxMismatch == /\ IsMaxMismatch(trunkUnlockMismatchCounters)
-
-IsAnyMaxMismatch == \/ IsChangeMaxMismatch
-                    \/ IsUnlockMaxMismatch
-                    \/ IsTrunkMaxMismatch
-
-IsChangeNoMismatch == /\ IsCountersNoMismatch(changeMismatchCounters)
-IsUnlockNoMismatch == /\ IsCountersNoMismatch(unlockMismatchCounters)
-IsTrunkNoMismatch == /\ IsCountersNoMismatch(trunkUnlockMismatchCounters)
-                     
-IsNoMismatch == /\ IsChangeNoMismatch
-                /\ IsUnlockNoMismatch
-                /\ IsTrunkNoMismatch
-
 ResetChangeCounters == /\ ResetCounters(changeMismatchCounters)
 ResetUnlockCounters == /\ ResetCounters(unlockMismatchCounters)
 ResetTrunkCounters == /\ ResetCounters(trunkUnlockMismatchCounters)
-
-\* TODO
-Init == /\ changeMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
-        /\ unlockMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
-        /\ trunkUnlockMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
 
 CheckChangeMismatch == 
     /\ CheckChangeMismatchCounter(TRUE, TRUE)
@@ -112,6 +120,7 @@ CheckUnlockMismatch ==
 CheckTrunkUnlockMismatch == 
     /\ CheckTrunkUnlockMismatchCounters(TRUE, TRUE)
     /\ UNCHANGED<<unlockMismatchCounters, changeMismatchCounters>>
+
 (***************************************************************************)
 (* Top-level Specification                                                 *)
 (***************************************************************************)
