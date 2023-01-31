@@ -23,6 +23,7 @@ CONSTANT
     ArmedDelay,                 \* Time the car takes to switch into an armed state after 
                                 \* it was locked (here: time to change the state from 
                                 \* ClosedAndLocked to Armed)
+    SoundDuration,                  \* TODO
     AlarmDelay,                 \* Time the car remains in a non-silent alarm state 
                                 \* (here: time where flash and sound or only flash are on)
     MaxPinMismatch              \* Max. count until a pin mismatch alarm is triggered 
@@ -30,6 +31,8 @@ CONSTANT
 ASSUME ArmedDelay \in Nat       \* ArmedDelay is set in the TLC, 20 sec by requirement
 ASSUME AlarmDelay \in Nat       \* AlarmDelay is set in the TLC, 300 sec by requirement (=5 min)
 ASSUME MaxPinMismatch \in Nat   \* MaxPinMismatch is set in the TLC, 3 tries by requirement
+ASSUME SoundDuration \in Nat
+ASSUME SoundDuration <= AlarmDelay
 
 ArmedRange == 0..ArmedDelay     \* Range for the armed timer, it counts down from the 
                                 \* max value (= ArmedDelay) to 0
@@ -450,7 +453,7 @@ AlarmTicker == /\ state = Alarm
                /\ alarmTimer > 0
                /\ \E d \in { n \in AlarmRange : n < alarmTimer}:
                    /\ alarmTimer' = d
-                   /\ IF d < 270
+                   /\ IF d < AlarmDelay - SoundDuration
                           THEN CarAlarm!DeactivateSound
                           ELSE UNCHANGED<<sound>>
                /\ UNCHANGED(pin_vars)

@@ -69,15 +69,12 @@ CheckPin(action, counters, unchanged) ==
 
 CheckChangeMismatchCounter(action, unchanged) == 
     /\ CheckPin(action, changeMismatchCounters, unchanged)
-    /\ UNCHANGED<<unlockMismatchCounters, trunkUnlockMismatchCounters>>
 
 CheckUnlockMismatchCounter(action, unchanged) == 
     /\ CheckPin(action, unlockMismatchCounters, unchanged)
-    /\ UNCHANGED<<changeMismatchCounters, trunkUnlockMismatchCounters>>
 
 CheckTrunkUnlockMismatchCounters(action, unchanged) == 
     /\ CheckPin(action, trunkUnlockMismatchCounters, unchanged)
-    /\ UNCHANGED<<unlockMismatchCounters, changeMismatchCounters>>
 
 IsChangeMaxMismatch == /\ IsMaxMismatch(changeMismatchCounters)
 IsUnlockMaxMismatch == /\ IsMaxMismatch(unlockMismatchCounters)
@@ -104,13 +101,24 @@ Init == /\ changeMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
         /\ unlockMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
         /\ trunkUnlockMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
 
+CheckChangeMismatch == 
+    /\ CheckChangeMismatchCounter(TRUE, TRUE)
+    /\ UNCHANGED<<unlockMismatchCounters, trunkUnlockMismatchCounters>>
+
+CheckUnlockMismatch == 
+    /\ CheckUnlockMismatchCounter(TRUE, TRUE)
+    /\ UNCHANGED<<changeMismatchCounters, trunkUnlockMismatchCounters>>
+
+CheckTrunkUnlockMismatch == 
+    /\ CheckTrunkUnlockMismatchCounters(TRUE, TRUE)
+    /\ UNCHANGED<<unlockMismatchCounters, changeMismatchCounters>>
 (***************************************************************************)
 (* Top-level Specification                                                 *)
 (***************************************************************************)
 
-Next == \/ CheckChangeMismatchCounter(TRUE, TRUE)
-        \/ CheckUnlockMismatchCounter(TRUE, TRUE)
-        \/ CheckTrunkUnlockMismatchCounters(TRUE, TRUE)
+Next == \/ CheckChangeMismatch
+        \/ CheckUnlockMismatch
+        \/ CheckTrunkUnlockMismatch
         \/ /\ IsChangeMaxMismatch
            /\ IsUnlockMaxMismatch
            /\ IsTrunkMaxMismatch
