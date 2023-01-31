@@ -44,17 +44,19 @@ VARIABLES
     trunkState,                     \* variable holding the current state of the trunk module
                                     \* together with the passenger area state this is the car's state
     changeMismatchCounter,          \* tracks how many wrong pins were sent to change the pin in an unlocked state
-    unlockMismatchCounter           \* tracks how many wrong pins were sent while in an armed state
+    unlockMismatchCounter,           \* tracks how many wrong pins were sent while in an armed state
+    trunkUnlockMismatchCounter      \* tracks how many wrong pins were sent while in an armed state
   
 vars == <<
     trunkState, 
     passengerAreaState, 
     passengerDoors, 
     changeMismatchCounter, 
-    unlockMismatchCounter>>
+    unlockMismatchCounter,
+    trunkUnlockMismatchCounter>>
 
 vars_doors == <<passengerAreaState, passengerDoors>>
-pin_vars == <<changeMismatchCounter, unlockMismatchCounter>>
+pin_vars == <<changeMismatchCounter, unlockMismatchCounter, trunkUnlockMismatchCounter>>
 
 (***************************************************************************)
 (* External Modules                                                        *)
@@ -97,6 +99,7 @@ TypeInvariant == /\ passengerAreaState \in STATES
                  /\ trunkState \in STATES
                  /\ changeMismatchCounter \in 0..MaxPinMismatch
                  /\ unlockMismatchCounter \in 0..MaxPinMismatch
+                 /\ trunkUnlockMismatchCounter \in 0..MaxPinMismatch
                  /\ Doors!TypeInvariant
                  /\ PassengerArea!TypeInvariant
                  /\ Trunk!TypeInvariant
@@ -118,6 +121,7 @@ Init == /\ Doors!Init
         /\ Trunk!Init
         /\ changeMismatchCounter = 0
         /\ unlockMismatchCounter = 0
+        /\ trunkUnlockMismatchCounter = 0
 
 (***************************************************************************)
 (* Helper Actions                                                          *)
@@ -184,16 +188,17 @@ CloseTrunk == /\ Trunk!Close
 
 \* Unlock trunk without unlocking doors 
 UnlockTrunk == /\ IsCarLocked
-               /\ CheckPin(Trunk!Unlock, unlockMismatchCounter, UNCHANGED<<trunkState>>)
+               /\ CheckPin(Trunk!Unlock, trunkUnlockMismatchCounter, UNCHANGED<<trunkState>>)
                /\ UNCHANGED(vars_doors)
-               /\ UNCHANGED<<changeMismatchCounter>>
+               /\ UNCHANGED<<changeMismatchCounter, unlockMismatchCounter>>
 
 \* Lock trunk again if trunk was unlocked on its own 
 LockTrunk == /\ AreDoorsLocked
              /\ IsTrunkUnlocked
              /\ Trunk!Lock
+             /\ trunkUnlockMismatchCounter' = 0
              /\ UNCHANGED(vars_doors)
-             /\ UNCHANGED(pin_vars)
+             /\ UNCHANGED<<changeMismatchCounter, unlockMismatchCounter>>
 
 \* TODO
 TrunkActions == \/ OpenTrunk
@@ -210,7 +215,9 @@ LockCar == /\ IsCarUnlocked
            /\ PassengerArea!Lock
            /\ Trunk!Lock
            /\ changeMismatchCounter' = 0
-           /\ UNCHANGED<<passengerDoors, unlockMismatchCounter>>
+           /\ unlockMismatchCounter' = 0
+           /\ trunkUnlockMismatchCounter' = 0
+           /\ UNCHANGED<<passengerDoors>>
 
 \* TODO
 UnlockCar == /\ AreDoorsLocked
@@ -218,9 +225,10 @@ UnlockCar == /\ AreDoorsLocked
                 /\ PassengerArea!Unlock
                 /\ IF IsTrunkLocked
                        THEN /\ Trunk!Unlock
-                       ELSE /\ UNCHANGED<<trunkState>>,
+                       ELSE /\ UNCHANGED<<trunkState>>
+                /\ trunkUnlockMismatchCounter'= 0,
                 unlockMismatchCounter,
-                /\ UNCHANGED<<passengerAreaState, trunkState>>)
+                /\ UNCHANGED<<passengerAreaState, trunkState, trunkUnlockMismatchCounter>>)
              /\ UNCHANGED<<changeMismatchCounter, passengerDoors>>
 
 (***************************************************************************)
@@ -238,7 +246,8 @@ SetNewPin == /\ IsCarUnlocked
                 passengerAreaState, 
                 passengerDoors, 
                 trunkState, 
-                unlockMismatchCounter>>
+                unlockMismatchCounter,
+                trunkUnlockMismatchCounter>>
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)
