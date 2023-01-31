@@ -104,6 +104,9 @@ TypeInvariant == /\ alarmSystemState \in ALARM_SYSTEM_STATES
                  /\ isArmed \in BOOLEAN
                  /\ armedTimer \in ArmedRange
                  /\ alarmTimer \in AlarmRange
+                 /\ changeMismatchCounter \in 0..MaxPinMismatch
+                 /\ unlockMismatchCounter \in 0..MaxPinMismatch
+                 /\ trunkUnlockMismatchCounter \in 0..MaxPinMismatch
                  /\ Car!TypeInvariant
                  /\ CarAlarm!TypeInvariant
 
@@ -149,7 +152,23 @@ Init == /\ alarmSystemState = Unarmed
         /\ sound = FALSE
         /\ armedTimer = ArmedDelay
         /\ alarmTimer = AlarmDelay
+        /\ changeMismatchCounter = 0
+        /\ unlockMismatchCounter = 0
+        /\ trunkUnlockMismatchCounter = 0
         /\ Car!Init
+
+\* Helper action that is called to non-deterministically check if a sent pin matches
+\* and so can unlock the car or change the pin, or if the pin is incorrect
+\* It takes the action that should be executed next if the pin matches or the unchanged
+\* variables if the pin does not match and the action does not get executed
+CheckPin(action, mismatchVar, unchanged) == 
+    /\ \E b \in BOOLEAN:
+        IF b = TRUE
+            THEN /\ action
+                 /\ mismatchVar' = 0
+            ELSE /\ mismatchVar < MaxPinMismatch 
+                 /\ mismatchVar' = mismatchVar + 1
+                 /\ unchanged
 
 (***************************************************************************)
 (* Helper Actions                                                          *)
@@ -167,56 +186,73 @@ AlarmFinished == /\ alarmSystemState = Alarm
                  /\ CarAlarm!Deactivate
                  /\ alarmTimer' = AlarmDelay
 
-UnlockCarWithoutPin == /\ Car!PassengerArea!Unlock
-                       /\ IF Car!IsTrunkLocked
-                             THEN /\ Car!Trunk!Unlock
-                             ELSE /\ UNCHANGED<<trunkState>>
-
 (***************************************************************************)
 (* Doors Open Close Actions                                                *)
 (***************************************************************************)
 
-\* Already open door, open another door
 \* TODO
-DefaultCarActions == /\ alarmSystemState = Unarmed
+UnarmedCarActions == /\ alarmSystemState = Unarmed
                      /\ changeMismatchCounter /= MaxPinMismatch
-                     /\ Car!Next
+                     /\ \/ /\ \/ Car!DoorActions
+                              \/ Car!OpenTrunk
+                              \/ Car!CloseTrunk
+                              \/ Car!UnlockTrunk
+                              \/ Car!UnlockCar
+                           /\ UNCHANGED<<changeMismatchCounter>>
+                        \/ /\ \/ Car!LockTrunk
+                              \/ Car!LockCar
+                           /\ changeMismatchCounter' = 0
                      /\ armedTimer' = ArmedDelay
-                     /\ unlockMismatchCounter' = 0
-                     /\ trunkUnlockMismatchCounter' = 0
-                     /\ UNCHANGED<<alarm_vars, alarmTimer>>
-
-\* TODO
-CarOpenTrunk == /\ Car!IsTrunkUnlocked
-                /\ Car!OpenTrunk
-
-\* TODO
-CarCloseTrunk == /\ Car!IsTrunkUnlocked
-                 /\ Car!CloseTrunk
-
-\* TODO
-CarLockTrunk ==  /\ Car!IsTrunkUnlocked
-                 /\ Car!LockTrunk
-
-\* TODO
-CarUnlockTrunk == /\ unlockMismatchCounter /= MaxPinMismatch
-                  /\ trunkUnlockMismatchCounter /= MaxPinMismatch
-                  /\ Car!UnlockTrunk
+                     /\ UNCHANGED<<
+                        alarm_vars, 
+                        alarmTimer,
+                        unlockMismatchCounter,
+                        trunkUnlockMismatchCounter>>
 
 \* TODO
 ArmedTrunkActions == /\ alarmSystemState = Armed
                      /\ unlockMismatchCounter /= MaxPinMismatch
                      /\ trunkUnlockMismatchCounter /= MaxPinMismatch
-                     /\ \/ CarOpenTrunk
-                        \/ CarCloseTrunk
-                        \/ /\ Car!IsTrunkClosed
-                           /\ CarLockTrunk
-                        \/ CarUnlockTrunk
-                 /\ UNCHANGED<<alarm_vars, timer_vars>>
+                     /\ \/ /\ Car!IsTrunkUnlocked
+                           /\ \/ Car!OpenTrunk
+                              \/ Car!CloseTrunk
+                              \/ /\ Car!IsTrunkClosed 
+                                 /\ Car!LockTrunk
+                           /\ UNCHANGED<<trunkUnlockMismatchCounter>>      
+                        \/ /\ Car!IsTrunkLocked
+                           /\ CheckPin(
+                              Car!UnlockTrunk, 
+                              trunkUnlockMismatchCounter, 
+                              UNCHANGED<<trunkState>>)
+                           /\ UNCHANGED<<passengerAreaState, passengerDoors>>
+                 /\ UNCHANGED<<
+                    alarm_vars, 
+                    timer_vars, 
+                    changeMismatchCounter, 
+                    unlockMismatchCounter>>
 
 \* TODO
-CarActions == \/ DefaultCarActions
+CarActions == \/ UnarmedCarActions
               \/ ArmedTrunkActions
+
+(***************************************************************************)
+(* Pin Actions                                                             *)
+(***************************************************************************)
+
+\* Action that allows changing the wireless key pin
+\* This is possible in an unlocked state and requires the old and the new pin
+\* to be provided
+\* If the old (= current) pin is provided wrongly for three times, a mismatch alarm
+\* will be triggered
+SetNewPin == /\ Car!IsCarUnlocked
+             /\ changeMismatchCounter /= MaxPinMismatch
+             /\ CheckPin(TRUE, changeMismatchCounter, TRUE)
+             /\ UNCHANGED<<
+                car_vars, 
+                alarm_vars,
+                timer_vars,
+                unlockMismatchCounter,
+                trunkUnlockMismatchCounter>>
 
 (***************************************************************************)
 (* Open After Armed Actions                                                *)
@@ -282,6 +318,8 @@ Close_After_SilentAndOpen == /\ alarmSystemState = SilentAndOpen
                              /\ UNCHANGED<<flash, sound, alarmTimer>>
                              /\ UNCHANGED(pin_vars)
 
+
+
 (***************************************************************************)
 (* State Actions                                                           *)
 (***************************************************************************)
@@ -291,19 +329,31 @@ Unlock_After_Armed == /\ alarmSystemState = Armed
                       /\ unlockMismatchCounter /= MaxPinMismatch
                       /\ trunkUnlockMismatchCounter /= MaxPinMismatch
                       /\ Car!IsTrunkClosed
-                      /\ Car!UnlockCar
-                      /\ IF passengerAreaState' /= ClosedAndUnlocked
-                             THEN /\ UNCHANGED<<alarmSystemState, isArmed>>
-                             ELSE /\ alarmSystemState' = Unarmed
-                                  /\ isArmed' = FALSE
-                      /\ UNCHANGED<<passengerDoors, flash, sound, timer_vars>>
+                      /\ CheckPin(
+                         /\ Car!UnlockCar
+                         /\ alarmSystemState' = Unarmed
+                         /\ isArmed' = FALSE
+                         /\ trunkUnlockMismatchCounter' = 0,
+                         unlockMismatchCounter,
+                         /\ UNCHANGED<<
+                            passengerAreaState, 
+                            trunkState, 
+                            alarmSystemState, 
+                            isArmed,
+                            trunkUnlockMismatchCounter>>)
+                      /\ UNCHANGED<<
+                         passengerDoors, 
+                         flash, 
+                         sound,
+                         changeMismatchCounter,
+                         timer_vars>>
 
 \* TODO
 Unlock_After_OpenAlarm == /\ alarmSystemState = Alarm
                           /\ changeMismatchCounter = 0
                           /\ unlockMismatchCounter = 0
                           /\ trunkUnlockMismatchCounter = 0
-                          /\ UnlockCarWithoutPin
+                          /\ Car!UnlockCar
                           /\ CarAlarm!Deactivate
                           /\ alarmSystemState' = Unarmed
                           /\ alarmTimer' = AlarmDelay
@@ -333,7 +383,7 @@ Unlock_After_UnlockMismatchAlarm == /\ alarmSystemState  = Alarm
                                     /\ unlockMismatchCounter = MaxPinMismatch
                                     /\ changeMismatchCounter = 0
                                     /\ trunkUnlockMismatchCounter /= MaxPinMismatch
-                                    /\ UnlockCarWithoutPin
+                                    /\ Car!UnlockCar
                                     /\ CarAlarm!Deactivate
                                     /\ alarmSystemState' = Unarmed
                                     /\ alarmTimer' = AlarmDelay
@@ -350,7 +400,7 @@ Unlock_After_TrunkUnlockMismatchAlarm == /\ alarmSystemState  = Alarm
                                          /\ trunkUnlockMismatchCounter = MaxPinMismatch
                                          /\ changeMismatchCounter = 0
                                          /\ unlockMismatchCounter /= MaxPinMismatch
-                                         /\ UnlockCarWithoutPin
+                                         /\ Car!UnlockCar
                                          /\ CarAlarm!Deactivate
                                          /\ alarmSystemState' = Unarmed
                                          /\ alarmTimer' = AlarmDelay
@@ -365,7 +415,7 @@ Unlock_After_TrunkUnlockMismatchAlarm == /\ alarmSystemState  = Alarm
 \* TODO
 Unlock_After_SilentAndOpen == /\ alarmSystemState  = SilentAndOpen
                               /\ alarmSystemState' = Unarmed
-                              /\ UnlockCarWithoutPin
+                              /\ Car!UnlockCar
                               /\ UNCHANGED<<timer_vars,
                                             pin_vars,
                                             isArmed,
@@ -443,6 +493,8 @@ AlarmFinished_TrunkUnlockMismatch == /\ AlarmFinished
                                         changeMismatchCounter,
                                         unlockMismatchCounter>>
 
+
+
 (***************************************************************************)
 (* Timer Actions                                                           *)
 (***************************************************************************)
@@ -499,6 +551,7 @@ Next == \/ CarActions
         \/ ChangeMismatchAlarm
         \/ UnlockMismatchAlarm
         \/ TrunkUnlockMismatchAlarm
+        \/ SetNewPin
 
 Spec == Init /\ [][Next]_vars
 
