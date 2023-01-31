@@ -125,7 +125,7 @@ ArmedInvariant == /\ armedTimer = ArmedDelay
                   /\ passengerAreaState = ClosedAndLocked
                   /\ ~(Car!IsTrunkOpen /\ Car!IsTrunkLocked)
 
-\* if the alarm is on, sound and flash should be on for the first 30 secs (alarm timer range: 270 - 300)
+\* if the alarm is on, sound and flash should be on during sound duration
 \* afterwards, only the flash should be on and the sound off
 \* if the alarm is on and was triggered by any mismatch, all doors should still be closed
 \* if not, any of the doors need to be open since it was an unauthorized open alarm
@@ -540,7 +540,7 @@ ArmingTicker == /\ alarmSystemState = Unarmed
 
 \* count down of the alarm timer from AlarmDelay to 0
 \* this is only possible while the car is in the ClosedAndLocked state
-\* once the alarm timer leaves the sound range (30 secs, so timer < 270)
+\* once the alarm timer leaves the sound range (timer < AlarmDelay - SoundDuration)
 \* the sound is deactivated and only the flash continues
 AlarmTicker == /\ alarmSystemState = Alarm
                /\ alarmTimer > 0

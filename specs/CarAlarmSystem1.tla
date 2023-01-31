@@ -38,10 +38,10 @@ TypeInvariant == state \in STATES
 
 Init == /\ state = Unlocked                         
 
-Lock_And_Close == /\ state = Unlocked            
+Lock_And_Close == /\ state  = Unlocked            
                   /\ state' = Locked
 
-Unlock_And_Open == /\ state = Locked           
+Unlock_And_Open == /\ state  = Locked           
                    /\ state' = Unlocked
 
 (***************************************************************************)

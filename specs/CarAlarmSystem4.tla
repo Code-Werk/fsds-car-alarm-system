@@ -24,12 +24,12 @@ ClosedAndLocked   == 1          \* Car is closed and locked
 OpenAndLocked     == 2          \* Car is still open but already locked
 ClosedAndUnlocked == 3          \* Car is not yet closed but already locked
 Armed             == 4          \* Car alarm system is armed (which means it is locked and
-                                \*  closed and alarm could be triggered)
-Alarm             == 5          \* Car alarm is on (which means an illegal action 
-                                \* - car opened without unlocking - 
+                                \* closed and alarm could be triggered)
+Alarm             == 5          \* Car alarm is on (which means an illegal action
+                                \* - car opened without unlocking -
                                 \* occurred in the armed state and the alarm was triggered)
 SilentAndOpen     == 6          \* Car has been in alarm (or technically still is, but no
-                                \* flash and sound is on) but is now waiting to return to 
+                                \* flash and sound is on) but is now waiting to return to
                                 \* armed or unlocked (car is closed again or unlocked)
 
 STATES ==                       \* Currently possible states
@@ -99,64 +99,64 @@ Close_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                                /\ UNCHANGED<<isArmed>>
 
 \* Close the car from the OpenAndLocked state to get to ClosedAndLocked
-Close_After_OpenAndLocked == /\ state  = OpenAndLocked 
+Close_After_OpenAndLocked == /\ state = OpenAndLocked 
                              /\ state' = ClosedAndLocked
                              /\ UNCHANGED(alarm_vars)
                              /\ UNCHANGED<<isArmed>>
 
 \* Close the car from the SilentAndOpen state (after an alarm was triggered but was already deactivated)
 \* This arms the car again
-Close_After_SilentAndOpen == /\ state  = SilentAndOpen
+Close_After_SilentAndOpen == /\ state = SilentAndOpen
                              /\ state' = Armed                          
                              /\ isArmed' = TRUE
                              /\ UNCHANGED(alarm_vars)
 
 \* Lock the car from the OpenAndUnlocked state to get to OpenAndLocked
-Lock_After_OpenAndUnlocked == /\ state  = OpenAndUnlocked
+Lock_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                               /\ state' = OpenAndLocked
                               /\ UNCHANGED(alarm_vars)
                               /\ UNCHANGED<<isArmed>>
 
 \* Lock the car from the OpenAndLocked state to get to ClosedAndLocked
-Lock_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
+Lock_After_ClosedAndUnlocked == /\ state = ClosedAndUnlocked
                                 /\ state' = ClosedAndLocked
                                 /\ UNCHANGED(alarm_vars)
                                 /\ UNCHANGED<<isArmed>>
 
 \* Open the car from the ClosedAndUnlocked state to get to OpenAndUnlocked
-Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
+Open_After_ClosedAndUnlocked == /\ state = ClosedAndUnlocked
                                 /\ state' = OpenAndUnlocked
                                 /\ UNCHANGED(alarm_vars)
                                 /\ UNCHANGED<<isArmed>>
 
 \* Open the car from the ClosedAndLocked state to get to OpenAndLocked
-Open_After_ClosedAndLocked == /\ state  = ClosedAndLocked
+Open_After_ClosedAndLocked == /\ state = ClosedAndLocked
                               /\ state' = OpenAndLocked
                               /\ UNCHANGED(alarm_vars)
                               /\ UNCHANGED<<isArmed>>
 
 \* Open the car from an armed state
 \* this is an illegal action -> trigger alarm
-Open_After_Armed == /\ state  = Armed                                   
+Open_After_Armed == /\ state = Armed                                   
                     /\ state' = Alarm                                   
                     /\ isArmed' = FALSE
                     /\ CarAlarm!Activate
 
 \* Unlock the car from the ClosedAndLocked state to get to ClosedAndUnlocked
-Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked
+Unlock_After_ClosedAndLocked == /\ state = ClosedAndLocked
                                 /\ state' = ClosedAndUnlocked
                                 /\ UNCHANGED(alarm_vars)
                                 /\ UNCHANGED<<isArmed>>
 
 \* Unlock the car from the OpenAndLocked state to get to OpenAndUnlocked
-Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked
+Unlock_After_OpenAndLocked == /\ state = OpenAndLocked
                               /\ state' = OpenAndUnlocked
                               /\ UNCHANGED(alarm_vars)
                               /\ UNCHANGED<<isArmed>>
              
 \* Unlock the car from an armed state to get into an unarmed state
 \* so the car can be arbitrarily unlocked/locked and opened/closed
-Unlock_After_Armed == /\ state  = Armed
+Unlock_After_Armed == /\ state = Armed
                       /\ state' = ClosedAndUnlocked
                       /\ isArmed' = FALSE
                       /\ UNCHANGED(alarm_vars)
@@ -164,21 +164,21 @@ Unlock_After_Armed == /\ state  = Armed
 \* Unlock the car after an alarm was triggered (car in alarm state)
 \* this ends the path for an illegal action and puts the car in the OpenAndUnlocked state
 \* and deactivates the alarm
-Unlock_After_Alarm == /\ state  = Alarm
+Unlock_After_Alarm == /\ state = Alarm
                       /\ state' = OpenAndUnlocked
                       /\ CarAlarm!Deactivate
                       /\ UNCHANGED<<isArmed>>
 
 \* Similar to the Unlock_After_Alarm action, but puts the car into a valid
 \* state again after the alarm already turned silent, thus, the alarm was already deactivated
-Unlock_After_SilentAndOpen == /\ state  = SilentAndOpen
+Unlock_After_SilentAndOpen == /\ state = SilentAndOpen
                               /\ state' = OpenAndUnlocked
                               /\ UNCHANGED(alarm_vars)
                               /\ UNCHANGED<<isArmed>>
 
 \* car transitioning from closed and unlocked into an armed state
 \* the car should also show it is armed, so the flag is set to true to indicate that
-Arming == /\ state  = ClosedAndLocked
+Arming == /\ state = ClosedAndLocked
           /\ state' = Armed
           /\ isArmed' = TRUE
           /\ UNCHANGED(alarm_vars)

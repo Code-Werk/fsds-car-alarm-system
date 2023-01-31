@@ -11,45 +11,46 @@
 EXTENDS Integers
 
 CONSTANT
-    ArmedDelay,                     \* Time the car takes to switch into an armed state after 
-                                    \* it was locked (here: time to change the state from 
-                                    \* ClosedAndLocked to Armed)
-    SoundDuration,                  \* TODO
-    AlarmDelay,                     \* Time the car remains in a non-silent alarm state 
-                                    \* (here: time where flash and sound or only flash are on)
-    MaxPinMismatch,                 \* Max. count until a pin mismatch alarm is triggered 
-                                    \* (here: how often can a key send a wrong pin)
-    DoorCount,                      \* Amount of the car's passenger doors
-    MaxPins                         \* Number of currently usable pins; Equivalent to the number of keys
+    ArmedDelay,                         \* Time the car takes to switch into an armed state after
+                                        \* it was locked (here: time to change the state from
+                                        \* ClosedAndLocked to Armed)
+    SoundDuration,                      \* Time duration specifying how long the alarm sound should be on
+                                        \* when the car is in an alarm state
+    AlarmDelay,                         \* Time the car remains in a non-silent alarm state
+                                        \* (here: time where flash and sound or only flash are on)
+    MaxPinMismatch,                     \* Max. count until a pin mismatch alarm is triggered
+                                        \* (here: how often can a key send a wrong pin)
+    DoorCount,                          \* Amount of the car's passenger doors
+    MaxPins                             \* Number of currently usable pins; Equivalent to the number of keys
 
-ASSUME ArmedDelay \in Nat           \* ArmedDelay is set in the TLC, 20 sec by requirement
-ASSUME AlarmDelay \in Nat           \* AlarmDelay is set in the TLC, 300 sec by requirement (=5 min)
-ASSUME MaxPinMismatch \in Nat       \* MaxPinMismatch is set in the TLC, 3 tries by requirement
-ASSUME MaxPins \in Nat              \* MaxPins is set in the TLC, requirement does not specify a specific number
-ASSUME SoundDuration \in Nat
-ASSUME SoundDuration <= AlarmDelay
+ASSUME ArmedDelay \in Nat               \* ArmedDelay is set in the TLC, 20 sec by requirement
+ASSUME AlarmDelay \in Nat               \* AlarmDelay is set in the TLC, 300 sec by requirement (=5 min)
+ASSUME MaxPinMismatch \in Nat           \* MaxPinMismatch is set in the TLC, 3 tries by requirement
+ASSUME MaxPins \in Nat                  \* MaxPins is set in the TLC, requirement does not specify a specific number
+ASSUME SoundDuration \in Nat            \* SoundDuration is set in the TLC, 30 sec by requirement
+ASSUME SoundDuration <= AlarmDelay      \* SoundDuration needs to be less or equal to the active alarm duration
 
-ArmedRange == 0..ArmedDelay         \* Range for the armed timer, it counts down from the 
-                                    \* max value (= ArmedDelay) to 0
-AlarmRange == 0..AlarmDelay         \* Range for the alarm timer, it counts down from the max
-                                    \* value (= AlarmDelay) to 0
+ArmedRange == 0..ArmedDelay             \* Range for the armed timer, it counts down from the
+                                        \* max value (= ArmedDelay) to 0
+AlarmRange == 0..AlarmDelay             \* Range for the alarm timer, it counts down from the max
+                                        \* value (= AlarmDelay) to 0
 
-OpenAndUnlocked   == 0              \* Car is open and unlocked
-ClosedAndLocked   == 1              \* Car is closed and locked
-OpenAndLocked     == 2              \* Car is still open but already locked
-ClosedAndUnlocked == 3              \* Car is not yet closed but already locked
+OpenAndUnlocked   == 0                  \* Car is open and unlocked
+ClosedAndLocked   == 1                  \* Car is closed and locked
+OpenAndLocked     == 2                  \* Car is still open but already locked
+ClosedAndUnlocked == 3                  \* Car is not yet closed but already locked
 
-Armed             == 4              \* Car alarm system is armed (which means it is locked and
-                                    \*  closed and alarm could be triggered)
-Alarm             == 5              \* Car alarm is on (which means an illegal action 
-                                    \* - car opened without unlocking - 
-                                    \* occurred in the armed state and the alarm was triggered)
-SilentAndOpen     == 6              \* Car has been in alarm (or technically still is, but no
-                                    \* flash and sound is on) but is now waiting to return to 
-                                    \* armed or unlocked (car is closed again or unlocked)
-Unarmed           == 7              \* Car is in an unarmed state and can be arbitrarily locked/unlocked and opened/closed
+Armed             == 4                  \* Car alarm system is armed (which means it is locked and
+                                        \* closed and alarm could be triggered)
+Alarm             == 5                  \* Car alarm is on (which means an illegal action
+                                        \* - car opened without unlocking -
+                                        \* occurred in the armed state and the alarm was triggered)
+SilentAndOpen     == 6                  \* Car has been in alarm (or technically still is, but no
+                                        \* flash and sound is on) but is now waiting to return to
+                                        \* armed or unlocked (car is closed again or unlocked)
+Unarmed           == 7                  \* Car is in an unarmed state and can be arbitrarily locked/unlocked and opened/closed
  
-ALARM_SYSTEM_STATES ==              \* states connected to the alarm system
+ALARM_SYSTEM_STATES ==                  \* states connected to the alarm system
     {
         Armed, 
         Alarm, 
@@ -58,20 +59,20 @@ ALARM_SYSTEM_STATES ==              \* states connected to the alarm system
     }
     
 VARIABLES
-    alarmSystemState,               \* variable holding the current state of the alarm system
-    passengerAreaState,             \* variable holding the current state of the passenger area module
-    passengerDoors,                 \* tuple representing the passenger doors
-                                    \* consists of an index and a bool flag indicating
-                                    \* if the door is open (flag is true), or closed (flag is false)
-    trunkState,                     \* variable holding the current state of the trunk module
-    isArmed,                        \* flag to indicate if the car is armed
-    flash,                          \* flag to indicate if flash is on
-    sound,                          \* flag to indicate if sound is on
-    armedTimer,                     \* timer that counts from ArmedDelay to 0
-    alarmTimer,                     \* timer that counts from AlarmDelay to 0
-    changeMismatchCounters,         \* tracks how many wrong pins were sent to change the pin in an unlocked state
-    unlockMismatchCounters,         \* tracks how many wrong pins were sent while in an armed state to unlock the car
-    trunkUnlockMismatchCounters     \* tracks how many wrong pins were sent while in an armed state to unlock the trunk alone
+    alarmSystemState,                   \* variable holding the current state of the alarm system
+    passengerAreaState,                 \* variable holding the current state of the passenger area module
+    passengerDoors,                     \* tuple representing the passenger doors
+                                        \* consists of an index and a bool flag indicating
+                                        \* if the door is open (flag is true), or closed (flag is false)
+    trunkState,                         \* variable holding the current state of the trunk module
+    isArmed,                            \* flag to indicate if the car is armed
+    flash,                              \* flag to indicate if flash is on
+    sound,                              \* flag to indicate if sound is on
+    armedTimer,                         \* timer that counts from ArmedDelay to 0
+    alarmTimer,                         \* timer that counts from AlarmDelay to 0
+    changeMismatchCounters,             \* tracks how many wrong pins were sent to change the pin in an unlocked state
+    unlockMismatchCounters,             \* tracks how many wrong pins were sent while in an armed state to unlock the car
+    trunkUnlockMismatchCounters         \* tracks how many wrong pins were sent while in an armed state to unlock the trunk alone
 
 vars == 
     <<
@@ -123,7 +124,7 @@ ArmedInvariant == /\ armedTimer = ArmedDelay
                   /\ passengerAreaState = ClosedAndLocked
                   /\ ~(Car!IsTrunkOpen /\ Car!IsTrunkLocked)
 
-\* if the alarm is on, sound and flash should be on for the first 30 secs (alarm timer range: 270 - 300)
+\* if the alarm is on, sound and flash should be on during sound duration
 \* afterwards, only the flash should be on and the sound off
 \* if the alarm is on and was triggered by any mismatch, all doors should still be closed
 \* if not, any of the doors need to be open since it was an unauthorized open alarm
@@ -537,7 +538,7 @@ ArmingTicker == /\ alarmSystemState = Unarmed
 
 \* count down of the alarm timer from AlarmDelay to 0
 \* this is only possible while the car is in the ClosedAndLocked state
-\* once the alarm timer leaves the sound range (30 secs, so timer < 270)
+\* once the alarm timer leaves the sound range (timer < AlarmDelay - SoundDuration)
 \* the sound is deactivated and only the flash continues
 AlarmTicker == /\ alarmSystemState = Alarm
                /\ alarmTimer > 0

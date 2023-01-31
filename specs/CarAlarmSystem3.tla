@@ -17,12 +17,12 @@ ClosedAndLocked   == 1          \* Car is closed and locked
 OpenAndLocked     == 2          \* Car is still open but already locked
 ClosedAndUnlocked == 3          \* Car is not yet closed but already locked
 Armed             == 4          \* Car alarm system is armed (which means it is locked and
-                                \*  closed and alarm could be triggered)
-Alarm             == 5          \* Car alarm is on (which means an illegal action 
-                                \* - car opened without unlocking - 
+                                \* closed and alarm could be triggered)
+Alarm             == 5          \* Car alarm is on (which means an illegal action
+                                \* - car opened without unlocking -
                                 \* occurred in the armed state and the alarm was triggered)
 SilentAndOpen     == 6          \* Car has been in alarm (or technically still is, but no
-                                \* flash and sound is on) but is now waiting to return to 
+                                \* flash and sound is on) but is now waiting to return to
                                 \* armed or unlocked (car is closed again or unlocked)
 
 STATES ==                       \* Currently possible states

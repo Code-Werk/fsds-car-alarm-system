@@ -19,42 +19,43 @@
 EXTENDS Integers
 
 CONSTANT
-    ArmedDelay,                     \* Time the car takes to switch into an armed state after 
-                                    \* it was locked (here: time to change the state from 
-                                    \* ClosedAndLocked to Armed)
-    SoundDuration,                  \* TODO
-    AlarmDelay,                     \* Time the car remains in a non-silent alarm state 
-                                    \* (here: time where flash and sound or only flash are on)
-    MaxPinMismatch,                 \* Max. count until a pin mismatch alarm is triggered 
-                                    \* (here: how often can a key send a wrong pin)
-    DoorCount                       \* Amount of the car's passenger doors
-ASSUME ArmedDelay \in Nat           \* ArmedDelay is set in the TLC, 20 sec by requirement
-ASSUME AlarmDelay \in Nat           \* AlarmDelay is set in the TLC, 300 sec by requirement (=5 min)
-ASSUME MaxPinMismatch \in Nat       \* MaxPinMismatch is set in the TLC, 3 tries by requirement
-ASSUME SoundDuration \in Nat
-ASSUME SoundDuration <= AlarmDelay
+    ArmedDelay,                         \* Time the car takes to switch into an armed state after
+                                        \* it was locked (here: time to change the state from
+                                        \* ClosedAndLocked to Armed)
+    SoundDuration,                      \* Time duration specifying how long the alarm sound should be on
+                                        \* when the car is in an alarm state
+    AlarmDelay,                         \* Time the car remains in a non-silent alarm state 
+                                        \* (here: time where flash and sound or only flash are on)
+    MaxPinMismatch,                     \* Max. count until a pin mismatch alarm is triggered
+                                        \* (here: how often can a key send a wrong pin)
+    DoorCount                           \* Amount of the car's passenger doors
+ASSUME ArmedDelay \in Nat               \* ArmedDelay is set in the TLC, 20 sec by requirement
+ASSUME AlarmDelay \in Nat               \* AlarmDelay is set in the TLC, 300 sec by requirement (=5 min)
+ASSUME MaxPinMismatch \in Nat           \* MaxPinMismatch is set in the TLC, 3 tries by requirement
+ASSUME SoundDuration \in Nat            \* SoundDuration is set in the TLC, 30 sec by requirement
+ASSUME SoundDuration <= AlarmDelay      \* SoundDuration needs to be less or equal to the active alarm duration
 
-ArmedRange == 0..ArmedDelay         \* Range for the armed timer, it counts down from the 
-                                    \* max value (= ArmedDelay) to 0
-AlarmRange == 0..AlarmDelay         \* Range for the alarm timer, it counts down from the max
-                                    \* value (= AlarmDelay) to 0
+ArmedRange == 0..ArmedDelay             \* Range for the armed timer, it counts down from the
+                                        \* max value (= ArmedDelay) to 0
+AlarmRange == 0..AlarmDelay             \* Range for the alarm timer, it counts down from the max
+                                        \* value (= AlarmDelay) to 0
 
-OpenAndUnlocked   == 0              \* Car is open and unlocked
-ClosedAndLocked   == 1              \* Car is closed and locked
-OpenAndLocked     == 2              \* Car is still open but already locked
-ClosedAndUnlocked == 3              \* Car is not yet closed but already locked
+OpenAndUnlocked   == 0                  \* Car is open and unlocked
+ClosedAndLocked   == 1                  \* Car is closed and locked
+OpenAndLocked     == 2                  \* Car is still open but already locked
+ClosedAndUnlocked == 3                  \* Car is not yet closed but already locked
 
-Armed             == 4              \* Car alarm system is armed (which means it is locked and
-                                    \*  closed and alarm could be triggered)
-Alarm             == 5              \* Car alarm is on (which means an illegal action 
-                                    \* - car opened without unlocking - 
-                                    \* occurred in the armed state and the alarm was triggered)
-SilentAndOpen     == 6              \* Car has been in alarm (or technically still is, but no
-                                    \* flash and sound is on) but is now waiting to return to 
-                                    \* armed or unlocked (car is closed again or unlocked)
-Unarmed           == 7              \* Car is in an unarmed state and can be arbitrarily locked/unlocked and opened/closed
- 
-ALARM_SYSTEM_STATES ==              \* states connected to the alarm system
+Armed             == 4                  \* Car alarm system is armed (which means it is locked and
+                                        \* closed and alarm could be triggered)
+Alarm             == 5                  \* Car alarm is on (which means an illegal action
+                                        \* - car opened without unlocking -
+                                        \* occurred in the armed state and the alarm was triggered)
+SilentAndOpen     == 6                  \* Car has been in alarm (or technically still is, but no
+                                        \* flash and sound is on) but is now waiting to return to
+                                        \* armed or unlocked (car is closed again or unlocked)
+Unarmed           == 7                  \* Car is in an unarmed state and can be arbitrarily locked/unlocked and opened/closed
+
+ALARM_SYSTEM_STATES ==                  \* states connected to the alarm system
     {
         Armed,
         Alarm,
@@ -63,20 +64,20 @@ ALARM_SYSTEM_STATES ==              \* states connected to the alarm system
     }
     
 VARIABLES
-    alarmSystemState,               \* variable holding the current state of the alarm system
-    passengerAreaState,             \* variable holding the current state of the passenger area module
-    passengerDoors,                 \* tuple representing the passenger doors
-                                    \* consists of an index and a bool flag indicating
-                                    \* if the door is open (flag is true), or closed (flag is false)
-    trunkState,                     \* variable holding the current state of the trunk module
-    changeMismatchCounter,          \* tracks how many wrong pins were sent to change the pin in an unlocked state
-    unlockMismatchCounter,          \* tracks how many wrong pins were sent while in an armed state to unlock the car
-    trunkUnlockMismatchCounter,     \* tracks how many wrong pins were sent while in an armed state to unlock the trunk alone
-    isArmed,                        \* flag to indicate if the car is armed
-    flash,                          \* flag to indicate if flash is on
-    sound,                          \* flag to indicate if sound is on
-    armedTimer,                     \* timer that counts from ArmedDelay to 0
-    alarmTimer                      \* timer that counts from AlarmDelay to 0
+    alarmSystemState,                   \* variable holding the current state of the alarm system
+    passengerAreaState,                 \* variable holding the current state of the passenger area module
+    passengerDoors,                     \* tuple representing the passenger doors
+                                        \* consists of an index and a bool flag indicating
+                                        \* if the door is open (flag is true), or closed (flag is false)
+    trunkState,                         \* variable holding the current state of the trunk module
+    changeMismatchCounter,              \* tracks how many wrong pins were sent to change the pin in an unlocked state
+    unlockMismatchCounter,              \* tracks how many wrong pins were sent while in an armed state to unlock the car
+    trunkUnlockMismatchCounter,         \* tracks how many wrong pins were sent while in an armed state to unlock the trunk alone
+    isArmed,                            \* flag to indicate if the car is armed
+    flash,                              \* flag to indicate if flash is on
+    sound,                              \* flag to indicate if sound is on
+    armedTimer,                         \* timer that counts from ArmedDelay to 0
+    alarmTimer                          \* timer that counts from AlarmDelay to 0
 
 vars == 
     <<
@@ -94,10 +95,10 @@ vars ==
         trunkUnlockMismatchCounter
     >>
 
-alarm_vars == <<alarmSystemState, flash, isArmed, sound>>
-car_vars == <<passengerAreaState, passengerDoors, trunkState>>
-timer_vars == <<armedTimer, alarmTimer>>
+alarm_vars == <<flash, sound>>
+car_vars   == <<passengerAreaState, passengerDoors, trunkState>>
 pin_vars   == <<changeMismatchCounter, unlockMismatchCounter, trunkUnlockMismatchCounter>>
+timer_vars == <<armedTimer, alarmTimer>>
 
 (***************************************************************************)
 (* External Modules                                                        *)
@@ -120,7 +121,7 @@ TypeInvariant == /\ alarmSystemState \in ALARM_SYSTEM_STATES
                  /\ Car!TypeInvariant
                  /\ CarAlarm!TypeInvariant
 
-\* if the alarm is on, sound and flash should be on for the first 30 secs (alarm timer range: 270 - 300)
+\* if the alarm is on, sound and flash should be on during sound duration
 \* afterwards, only the flash should be on and the sound off
 \* if the alarm is on and was triggered by any mismatch, all doors should still be closed
 \* if not, any of the doors need to be open since it was an unauthorized open alarm
@@ -131,9 +132,9 @@ AlarmInvariant == /\ flash = TRUE
                          THEN /\ \/ Car!IsCarUnlocked
                                  \/ passengerAreaState = ClosedAndLocked
                          ELSE /\ \/ Car!AreDoorsOpen
-                                 \/ /\ Car!IsTrunkOpen 
+                                 \/ /\ Car!IsTrunkOpen
                                     /\ Car!IsTrunkLocked
-                  /\ IF alarmTimer > 269 
+                  /\ IF alarmTimer >= AlarmDelay - SoundDuration
                          THEN sound = TRUE
                          ELSE sound = FALSE
 
@@ -170,7 +171,7 @@ Invariant == /\ TypeInvariant
 \* the car is unarmed, armed timer is set to ArmedDelay
 \* alarm indicators are off (alarm is deactivated) and alarm timer is set to AlarmDelay
 \* the car module needs to be initialized
-Init == /\ alarmSystemState = Unarmed 
+Init == /\ alarmSystemState = Unarmed
         /\ isArmed = FALSE
         /\ flash = FALSE
         /\ sound = FALSE
@@ -228,9 +229,11 @@ UnarmedCarActions == /\ alarmSystemState = Unarmed
                               \/ Car!LockCar
                            /\ changeMismatchCounter' = 0
                      /\ armedTimer' = ArmedDelay
+                     /\ UNCHANGED(alarm_vars)
                      /\ UNCHANGED<<
-                        alarm_vars, 
+                        alarmSystemState,
                         alarmTimer,
+                        isArmed,
                         unlockMismatchCounter,
                         trunkUnlockMismatchCounter>>
 
@@ -244,17 +247,19 @@ ArmedTrunkActions == /\ alarmSystemState = Armed
                               \/ Car!CloseTrunk
                               \/ /\ Car!IsTrunkClosed 
                                  /\ Car!LockTrunk
-                           /\ UNCHANGED<<trunkUnlockMismatchCounter>>      
+                           /\ UNCHANGED<<trunkUnlockMismatchCounter>>
                         \/ /\ Car!IsTrunkLocked
                            /\ CheckPin(
                               Car!UnlockTrunk, 
                               trunkUnlockMismatchCounter, 
                               UNCHANGED<<trunkState>>)
                            /\ UNCHANGED<<passengerAreaState, passengerDoors>>
+                 /\ UNCHANGED(alarm_vars)
+                 /\ UNCHANGED(timer_vars)
                  /\ UNCHANGED<<
-                    alarm_vars, 
-                    timer_vars, 
-                    changeMismatchCounter, 
+                    alarmSystemState,
+                    isArmed,
+                    changeMismatchCounter,
                     unlockMismatchCounter>>
 
 \* Action combining the possible car actions
@@ -273,10 +278,12 @@ CarActions == \/ UnarmedCarActions
 SetNewPin == /\ Car!IsCarUnlocked
              /\ changeMismatchCounter /= MaxPinMismatch
              /\ CheckPin(TRUE, changeMismatchCounter, TRUE)
+             /\ UNCHANGED(alarm_vars)
+             /\ UNCHANGED(car_vars)
+             /\ UNCHANGED(timer_vars)
              /\ UNCHANGED<<
-                car_vars, 
-                alarm_vars,
-                timer_vars,
+                alarmSystemState,
+                isArmed,
                 unlockMismatchCounter,
                 trunkUnlockMismatchCounter>>
 
@@ -293,12 +300,9 @@ Arming == /\ Car!IsCarLocked
           /\ SetArmed
           /\ unlockMismatchCounter' = 0
           /\ trunkUnlockMismatchCounter' = 0
+          /\ UNCHANGED(alarm_vars)
+          /\ UNCHANGED(car_vars)
           /\ UNCHANGED<<
-            passengerAreaState,
-            passengerDoors,
-            trunkState,
-            flash,
-            sound,
             alarmTimer,
             changeMismatchCounter>>
 
@@ -327,9 +331,11 @@ Close_After_SilentAndOpen == /\ alarmSystemState = SilentAndOpen
                              /\ IF /\ \A pd \in passengerDoors' : pd[2] = FALSE
                                    /\ trunkState' \in {ClosedAndLocked, ClosedAndUnlocked}
                                     THEN SetArmed
-                                    ELSE UNCHANGED<<alarm_vars, armedTimer>>
-                             /\ UNCHANGED<<flash, sound, alarmTimer>>
+                                    ELSE /\ UNCHANGED(alarm_vars)
+                                         /\ UNCHANGED<<alarmSystemState, armedTimer, isArmed>>
                              /\ UNCHANGED(pin_vars)
+                             /\ UNCHANGED(alarm_vars)
+                             /\ UNCHANGED<<alarmTimer>>
 
 (***************************************************************************)
 (* State Actions                                                           *)
@@ -350,101 +356,16 @@ Unlock_After_Armed == /\ alarmSystemState = Armed
                          /\ trunkUnlockMismatchCounter' = 0,
                          unlockMismatchCounter,
                          /\ UNCHANGED<<
-                            passengerAreaState, 
-                            trunkState, 
-                            alarmSystemState, 
+                            passengerAreaState,
+                            trunkState,
+                            alarmSystemState,
                             isArmed,
                             trunkUnlockMismatchCounter>>)
+                      /\ UNCHANGED(alarm_vars)
+                      /\ UNCHANGED(timer_vars)
                       /\ UNCHANGED<<
-                         passengerDoors, 
-                         flash, 
-                         sound,
-                         changeMismatchCounter,
-                         timer_vars>>
-
-\* Unlock the car after an alarm was triggered (car in alarm state) due to an unauthorized open
-\* This ends the path for an illegal action and puts the alarm system in an unarmed state and the
-\* car (passenger area and trunk) into the OpenAndUnlocked state
-\* additionally, it deactivates the alarm and resets the alarm timer
-\* we assume that this unlock is done via the physical method (key turned in lock) and we
-\* ignore wireless unlocks
-Unlock_After_OpenAlarm == /\ alarmSystemState = Alarm
-                          /\ changeMismatchCounter = 0
-                          /\ unlockMismatchCounter = 0
-                          /\ trunkUnlockMismatchCounter = 0
-                          /\ Car!UnlockCar
-                          /\ CarAlarm!Deactivate
-                          /\ alarmSystemState' = Unarmed
-                          /\ alarmTimer' = AlarmDelay
-                          /\ UNCHANGED(pin_vars)
-                          /\ UNCHANGED<<isArmed, armedTimer, passengerDoors>>
-
-\* Unlock the car after an alarm was triggered (car in alarm state) by a change pin mismatch
-\* This ends the path for an illegal action and puts the alarm system in an unarmed state and
-\* the car in back in the previous state, resets the mismatch counter and deactivates the alarm
-\* and resets the alarm timer
-\* we assume that this unlock is done via the physical method (key turned in lock) and we
-\* ignore wireless unlocks
-Unlock_After_ChangeMismatchAlarm == /\ alarmSystemState  = Alarm
-                                    /\ changeMismatchCounter = MaxPinMismatch
-                                    /\ unlockMismatchCounter = 0
-                                    /\ trunkUnlockMismatchCounter = 0
-                                    /\ Car!IsCarUnlocked
-                                    /\ CarAlarm!Deactivate
-                                    /\ alarmSystemState' = Unarmed
-                                    /\ alarmTimer' = AlarmDelay
-                                    /\ changeMismatchCounter' = 0
-                                    /\ UNCHANGED<<
-                                       isArmed, 
-                                       car_vars,
-                                       armedTimer,
-                                       passengerDoors,
-                                       unlockMismatchCounter,
-                                       trunkUnlockMismatchCounter>>
-
-\* Unlock the car after an alarm was triggered (car in alarm state) after an unlock pin mismatch
-\* This ends the path for an illegal action and puts the alarm system in an unarmed state and the
-\* car (passenger area and trunk) into the ClosedAndUnlocked state,
-\* resets the mismatch counter and deactivates the alarm and resets the alarm timer
-\* we assume that this unlock is done via the physical method (key turned in lock) and we
-\* ignore wireless unlocks
-Unlock_After_UnlockMismatchAlarm == /\ alarmSystemState  = Alarm
-                                    /\ unlockMismatchCounter = MaxPinMismatch
-                                    /\ changeMismatchCounter = 0
-                                    /\ trunkUnlockMismatchCounter /= MaxPinMismatch
-                                    /\ Car!UnlockCar
-                                    /\ CarAlarm!Deactivate
-                                    /\ alarmSystemState' = Unarmed
-                                    /\ alarmTimer' = AlarmDelay
-                                    /\ unlockMismatchCounter' = 0
-                                    /\ trunkUnlockMismatchCounter' = 0
-                                    /\ UNCHANGED<<
-                                       isArmed, 
-                                       passengerDoors,
-                                       armedTimer,
-                                       changeMismatchCounter>>
-
-\* Unlock the car after an alarm was triggered (car in alarm state) after an unlock trunk pin mismatch
-\* This ends the path for an illegal action and puts the alarm system in an unarmed state and the
-\* car (passenger area and trunk) into the ClosedAndUnlocked state,
-\* resets the mismatch counter and deactivates the alarm and resets the alarm timer
-\* we assume that this unlock is done via the physical method (key turned in lock) and we
-\* ignore wireless unlocks
-Unlock_After_TrunkUnlockMismatchAlarm == /\ alarmSystemState  = Alarm
-                                         /\ trunkUnlockMismatchCounter = MaxPinMismatch
-                                         /\ changeMismatchCounter = 0
-                                         /\ unlockMismatchCounter /= MaxPinMismatch
-                                         /\ Car!UnlockCar
-                                         /\ CarAlarm!Deactivate
-                                         /\ alarmSystemState' = Unarmed
-                                         /\ alarmTimer' = AlarmDelay
-                                         /\ unlockMismatchCounter' = 0
-                                         /\ trunkUnlockMismatchCounter' = 0
-                                         /\ UNCHANGED<<
-                                            isArmed,
-                                            passengerDoors,
-                                            armedTimer,
-                                            changeMismatchCounter>>
+                         passengerDoors,
+                         changeMismatchCounter>>
 
 \* Similar to the Unlock_After_Alarm action, but puts the car into a valid
 \* state again after the alarm already turned silent, thus, the alarm was already deactivated
@@ -452,12 +373,10 @@ Unlock_After_TrunkUnlockMismatchAlarm == /\ alarmSystemState  = Alarm
 Unlock_After_SilentAndOpen == /\ alarmSystemState = SilentAndOpen
                               /\ alarmSystemState' = Unarmed
                               /\ Car!UnlockCar
-                              /\ UNCHANGED<<timer_vars,
-                                            pin_vars,
-                                            isArmed,
-                                            passengerDoors,
-                                            flash,
-                                            sound>>
+                              /\ UNCHANGED(alarm_vars)
+                              /\ UNCHANGED(pin_vars)
+                              /\ UNCHANGED(timer_vars)
+                              /\ UNCHANGED<<isArmed, passengerDoors>>
 
 (***************************************************************************)
 (* Alarm Actions                                                           *)
@@ -482,9 +401,8 @@ UnlockMismatchAlarm == /\ alarmSystemState = Armed
                        /\ isArmed' = FALSE
                        /\ CarAlarm!Activate
                        /\ UNCHANGED(car_vars)
-                       /\ UNCHANGED(timer_vars)
                        /\ UNCHANGED(pin_vars)
-
+                       /\ UNCHANGED(timer_vars)
 
 \* action that triggers the car alarm after there were too many unlock trunk attempts with
 \* an invalid pin (trunkUnlockMismatchCounter reached MaxPinMismatch)
@@ -494,8 +412,8 @@ TrunkUnlockMismatchAlarm == /\ alarmSystemState = Armed
                             /\ isArmed' = FALSE
                             /\ CarAlarm!Activate
                             /\ UNCHANGED(car_vars)
-                            /\ UNCHANGED(timer_vars)
                             /\ UNCHANGED(pin_vars)
+                            /\ UNCHANGED(timer_vars)
 
 \* the car alarm was active (sound for 20 secs, flashing for 300 secs) for 5 mins
 \* and not (correctly) unlocked in the meantime, so we go to the originating state
@@ -504,11 +422,11 @@ AlarmFinished_ChangeMismatchAlarm == /\ AlarmFinished
                                      /\ changeMismatchCounter = MaxPinMismatch
                                      /\ alarmSystemState' = Unarmed
                                      /\ changeMismatchCounter' = 0
+                                     /\ UNCHANGED(car_vars)
                                      /\ UNCHANGED<<
                                         isArmed,
-                                        car_vars,
-                                        unlockMismatchCounter, 
-                                        trunkUnlockMismatchCounter, 
+                                        unlockMismatchCounter,
+                                        trunkUnlockMismatchCounter,
                                         armedTimer>>
 
 \* the car alarm was active (sound for 20 secs, flashing for 300 secs) for 5 mins
@@ -518,9 +436,9 @@ AlarmFinished_UnlockMismatch == /\ AlarmFinished
                                 /\ unlockMismatchCounter = MaxPinMismatch
                                 /\ SetArmed
                                 /\ unlockMismatchCounter' = 0
+                                /\ UNCHANGED(car_vars)
                                 /\ UNCHANGED<<
                                    armedTimer,
-                                   car_vars,
                                    changeMismatchCounter,
                                    trunkUnlockMismatchCounter>>
 
@@ -531,9 +449,9 @@ AlarmFinished_TrunkUnlockMismatch == /\ AlarmFinished
                                      /\ trunkUnlockMismatchCounter = MaxPinMismatch
                                      /\ SetArmed
                                      /\ trunkUnlockMismatchCounter' = 0
+                                     /\ UNCHANGED(car_vars)
                                      /\ UNCHANGED<<
                                         armedTimer,
-                                        car_vars,
                                         changeMismatchCounter,
                                         unlockMismatchCounter>>
 
@@ -545,11 +463,93 @@ AlarmFinished_Open == /\ AlarmFinished
                       /\ unlockMismatchCounter = 0 
                       /\ trunkUnlockMismatchCounter = 0 
                       /\ alarmSystemState' = SilentAndOpen
-                      /\ UNCHANGED<<
-                         car_vars,
-                         isArmed,
-                         armedTimer,
-                         pin_vars>>
+                      /\ UNCHANGED(car_vars)
+                      /\ UNCHANGED(pin_vars)
+                      /\ UNCHANGED<<isArmed, armedTimer>>
+
+\* Unlock the car after an alarm was triggered (car in alarm state) due to an unauthorized open
+\* This ends the path for an illegal action and puts the alarm system in an unarmed state and the
+\* car (passenger area and trunk) into the OpenAndUnlocked state
+\* additionally, it deactivates the alarm and resets the alarm timer
+\* we assume that this unlock is done via the physical method (key turned in lock) and we
+\* ignore wireless unlocks
+Unlock_After_OpenAlarm == /\ alarmSystemState = Alarm
+                          /\ changeMismatchCounter = 0
+                          /\ unlockMismatchCounter = 0
+                          /\ trunkUnlockMismatchCounter = 0
+                          /\ Car!UnlockCar
+                          /\ CarAlarm!Deactivate
+                          /\ alarmSystemState' = Unarmed
+                          /\ alarmTimer' = AlarmDelay
+                          /\ UNCHANGED(pin_vars)
+                          /\ UNCHANGED<<isArmed, armedTimer, passengerDoors>>
+
+\* Unlock the car after an alarm was triggered (car in alarm state) by a change pin mismatch
+\* This ends the path for an illegal action and puts the alarm system in an unarmed state and
+\* the car in back in the previous state, resets the mismatch counter and deactivates the alarm
+\* and resets the alarm timer
+\* we assume that this unlock is done via the physical method (key turned in lock) and we
+\* ignore wireless unlocks
+Unlock_After_ChangeMismatchAlarm == /\ alarmSystemState = Alarm
+                                    /\ changeMismatchCounter = MaxPinMismatch
+                                    /\ unlockMismatchCounter = 0
+                                    /\ trunkUnlockMismatchCounter = 0
+                                    /\ Car!IsCarUnlocked
+                                    /\ CarAlarm!Deactivate
+                                    /\ alarmSystemState' = Unarmed
+                                    /\ alarmTimer' = AlarmDelay
+                                    /\ changeMismatchCounter' = 0
+                                    /\ UNCHANGED(car_vars)
+                                    /\ UNCHANGED<<
+                                       isArmed,
+                                       armedTimer,
+                                       passengerDoors,
+                                       unlockMismatchCounter,
+                                       trunkUnlockMismatchCounter>>
+
+\* Unlock the car after an alarm was triggered (car in alarm state) after an unlock pin mismatch
+\* This ends the path for an illegal action and puts the alarm system in an unarmed state and the
+\* car (passenger area and trunk) into the ClosedAndUnlocked state,
+\* resets the mismatch counter and deactivates the alarm and resets the alarm timer
+\* we assume that this unlock is done via the physical method (key turned in lock) and we
+\* ignore wireless unlocks
+Unlock_After_UnlockMismatchAlarm == /\ alarmSystemState = Alarm
+                                    /\ unlockMismatchCounter = MaxPinMismatch
+                                    /\ changeMismatchCounter = 0
+                                    /\ trunkUnlockMismatchCounter /= MaxPinMismatch
+                                    /\ Car!UnlockCar
+                                    /\ CarAlarm!Deactivate
+                                    /\ alarmSystemState' = Unarmed
+                                    /\ alarmTimer' = AlarmDelay
+                                    /\ unlockMismatchCounter' = 0
+                                    /\ trunkUnlockMismatchCounter' = 0
+                                    /\ UNCHANGED<<
+                                       isArmed,
+                                       passengerDoors,
+                                       armedTimer,
+                                       changeMismatchCounter>>
+
+\* Unlock the car after an alarm was triggered (car in alarm state) after an unlock trunk pin mismatch
+\* This ends the path for an illegal action and puts the alarm system in an unarmed state and the
+\* car (passenger area and trunk) into the ClosedAndUnlocked state,
+\* resets the mismatch counter and deactivates the alarm and resets the alarm timer
+\* we assume that this unlock is done via the physical method (key turned in lock) and we
+\* ignore wireless unlocks
+Unlock_After_TrunkUnlockMismatchAlarm == /\ alarmSystemState = Alarm
+                                         /\ trunkUnlockMismatchCounter = MaxPinMismatch
+                                         /\ changeMismatchCounter = 0
+                                         /\ unlockMismatchCounter /= MaxPinMismatch
+                                         /\ Car!UnlockCar
+                                         /\ CarAlarm!Deactivate
+                                         /\ alarmSystemState' = Unarmed
+                                         /\ alarmTimer' = AlarmDelay
+                                         /\ unlockMismatchCounter' = 0
+                                         /\ trunkUnlockMismatchCounter' = 0
+                                         /\ UNCHANGED<<
+                                            isArmed,
+                                            passengerDoors,
+                                            armedTimer,
+                                            changeMismatchCounter>>
 
 (***************************************************************************)
 (* Timer Actions                                                           *)
@@ -563,30 +563,29 @@ ArmingTicker == /\ alarmSystemState = Unarmed
                 /\ armedTimer > 0
                 /\ \E d \in { n \in ArmedRange : n < armedTimer}:
                     armedTimer' = d 
-                /\ UNCHANGED<<
-                   car_vars,
-                   alarm_vars,
-                   alarmTimer,
-                   pin_vars>>
+                /\ UNCHANGED(alarm_vars)
+                /\ UNCHANGED(car_vars)
+                /\ UNCHANGED(pin_vars)
+                /\ UNCHANGED<<alarmSystemState, alarmTimer, isArmed>>
 
 \* count down of the alarm timer from AlarmDelay to 0
 \* this is only possible while the car is in the ClosedAndLocked state
-\* once the alarm timer leaves the sound range (30 secs, so timer < 270)
+\* once the alarm timer leaves the sound range (timer < AlarmDelay - SoundDuration)
 \* the sound is deactivated and only the flash continues
 AlarmTicker == /\ alarmSystemState = Alarm
                /\ alarmTimer > 0
                /\ \E d \in { n \in AlarmRange : n < alarmTimer}:
                    /\ alarmTimer' = d
                    /\ IF d < AlarmDelay - SoundDuration
-                      THEN CarAlarm!DeactivateSound
-                      ELSE UNCHANGED<<sound>>
+                          THEN CarAlarm!DeactivateSound
+                          ELSE UNCHANGED<<sound>>
+               /\ UNCHANGED(car_vars)
+               /\ UNCHANGED(pin_vars)
                /\ UNCHANGED<<
-                  car_vars,
                   alarmSystemState,
                   isArmed,
                   flash,
-                  armedTimer,
-                  pin_vars>>
+                  armedTimer>>
 
 (***************************************************************************)
 (* Top-level Specification                                                 *)
