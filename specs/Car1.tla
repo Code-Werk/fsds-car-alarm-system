@@ -15,7 +15,7 @@
 EXTENDS Integers
 
 CONSTANT
-    DoorCount,                      \* Amount of the car's doors
+    DoorCount,                      \* Amount of the car's passenger doors
     MaxPinMismatch                  \* Max. count until a pin mismatch alarm is triggered 
                                     \* (here: how often can a key send a wrong pin)
 ASSUME DoorCount \in {2,4}          \* DoorCount is set in the TLC
@@ -27,7 +27,7 @@ ClosedAndLocked   == 1              \* Car is closed and locked
 OpenAndLocked     == 2              \* Car is still open but already locked
 ClosedAndUnlocked == 3              \* Car is not yet closed but already locked
 
-STATES ==                           \* Possible states regarding the entire car
+STATES ==                           \* Possible car states
     {
         OpenAndUnlocked,
         ClosedAndLocked,
@@ -44,14 +44,14 @@ VARIABLES
     trunkState,                     \* variable holding the current state of the trunk module
                                     \* together with the passenger area state this is the car's state
     changeMismatchCounter,          \* tracks how many wrong pins were sent to change the pin in an unlocked state
-    unlockMismatchCounter,           \* tracks how many wrong pins were sent while in an armed state
-    trunkUnlockMismatchCounter      \* tracks how many wrong pins were sent while in an armed state
+    unlockMismatchCounter,          \* tracks how many wrong pins were sent while in an armed state to unlock the car
+    trunkUnlockMismatchCounter      \* tracks how many wrong pins were sent while in an armed state to unlock the trunk alone
   
 vars == <<
     trunkState, 
-    passengerAreaState, 
-    passengerDoors, 
-    changeMismatchCounter, 
+    passengerAreaState,
+    passengerDoors,
+    changeMismatchCounter,
     unlockMismatchCounter,
     trunkUnlockMismatchCounter>>
 
@@ -62,8 +62,13 @@ pin_vars == <<changeMismatchCounter, unlockMismatchCounter, trunkUnlockMismatchC
 (* External Modules                                                        *)
 (***************************************************************************)
 
+\* instance of the 2nd car alarm system refinement to represent the open/closed
+\* and locked/unlocked states of the doors in the car's passenger area
 PassengerArea == INSTANCE CarAlarmSystem2 WITH state <- passengerAreaState
+\* instance of the 2nd car alarm system refinement to represent the open/closed
+\* and locked/unlocked states of the car's trunk
 Trunk == INSTANCE CarAlarmSystem2 WITH state <- trunkState
+\* instance of the doors module to represent the car doors
 Doors == INSTANCE Doors1 WITH passengerDoors <- passengerDoors
 
 (***************************************************************************)
@@ -71,21 +76,29 @@ Doors == INSTANCE Doors1 WITH passengerDoors <- passengerDoors
 (* Accessible outside to ease guard usage for the module if instantiated   *)
 (***************************************************************************)
 
+\* Group of guards that allows to check if a given state is a closed, opened
+\* locked or unlocked state
 IsStateClosed(state) == /\ state \in {ClosedAndLocked, ClosedAndUnlocked}
 IsStateLocked(state) == /\ state \in {ClosedAndLocked, OpenAndLocked}
 IsStateOpen(state) == /\ state \in {OpenAndLocked, OpenAndUnlocked}
 IsStateUnlocked(state) == /\ state \in {ClosedAndUnlocked, OpenAndUnlocked}
 
+\* Group of guards that allows to check if the passenger area doors are in a 
+\* closed, opened, locked or unlocked state
 AreDoorsClosed == /\ Doors!AreClosed /\ IsStateClosed(passengerAreaState)
 AreDoorsLocked == /\ IsStateLocked(passengerAreaState)
 AreDoorsOpen == /\ Doors!AreOpen /\ IsStateOpen(passengerAreaState)
 AreDoorsUnlocked == /\ IsStateUnlocked(passengerAreaState)
 
+\* Group of guards that allows to check if the trunk is in a 
+\* closed, opened, locked or unlocked state
 IsTrunkClosed == /\ IsStateClosed(trunkState)
 IsTrunkLocked == /\ IsStateLocked(trunkState)
 IsTrunkOpen == /\ IsStateOpen(trunkState)
 IsTrunkUnlocked == /\ IsStateUnlocked(trunkState)
 
+\* Group of guards that allows to check if the entire car (passenger doors, trunk)
+\* is in a closed, opened, locked or unlocked state
 IsCarClosed == /\ AreDoorsClosed /\ IsTrunkClosed
 IsCarLocked == /\ AreDoorsLocked /\ IsTrunkLocked 
 IsCarOpen == /\ AreDoorsOpen /\ IsTrunkOpen
@@ -115,7 +128,8 @@ Invariant == /\ TypeInvariant
 (* Actions                                                                 *)
 (***************************************************************************)
 
-\* TODO
+\* Initialize the external modules (doors, passenger area and trunk)
+\* set mismatch counters to 0
 Init == /\ Doors!Init
         /\ PassengerArea!Init
         /\ Trunk!Init
@@ -128,7 +142,7 @@ Init == /\ Doors!Init
 (* These actions need to be defined before actions that use them           *)
 (***************************************************************************)
 
-\* Helper action that is called to non-deterministically check if a sent pin matches
+\* Helper action that is called to non-deterministically check if a sent pin matches,
 \* and so can unlock the car or change the pin, or if the pin is incorrect
 \* It takes the action that should be executed next if the pin matches or the unchanged
 \* variables if the pin does not match and the action does not get executed
@@ -145,20 +159,22 @@ CheckPin(action, mismatchVar, unchanged) ==
 (* Doors Actions                                                           *)
 (***************************************************************************)
 
-\* TODO
+\* Opens the first passenger door after all of them were closed
 OpenDoor_From_Closed == /\ AreDoorsClosed
                         /\ PassengerArea!Open
                         /\ Doors!Open
                         /\ UNCHANGED<<trunkState>>
                         /\ UNCHANGED(pin_vars)
 
-\* TODO
+\* Opens another passenger door (which means at least one has been opened before,
+\* but there are still closed ones)
 OpenDoor_Another_One == /\ AreDoorsOpen
                         /\ Doors!Open
                         /\ UNCHANGED<<passengerAreaState, trunkState>>
                         /\ UNCHANGED(pin_vars)
 
-\* TODO
+\* Closes a passenger door if there is at least one open door
+\* If it was the last open door, the passenger area state changes
 CloseDoor == /\ AreDoorsOpen
              /\ Doors!Close \*includes open check
              /\ IF {pd \in passengerDoors' : pd[2] = TRUE} = {}
@@ -167,7 +183,7 @@ CloseDoor == /\ AreDoorsOpen
              /\ UNCHANGED<<trunkState>>
              /\ UNCHANGED(pin_vars)
 
-\* TODO
+\* Action combining all actions possible in the passenger area (actions on the passenger doors)
 DoorActions == \/ OpenDoor_Another_One
                \/ OpenDoor_From_Closed
                \/ CloseDoor
@@ -176,23 +192,24 @@ DoorActions == \/ OpenDoor_Another_One
 (* Trunk Actions                                                           *)
 (***************************************************************************)
 
-\* TODO
+\* Opens the car's trunk
 OpenTrunk == /\ Trunk!Open
              /\ UNCHANGED(vars_doors)
              /\ UNCHANGED(pin_vars)
 
-\* TODO
+\* Closes the car's trunk
 CloseTrunk == /\ Trunk!Close
               /\ UNCHANGED(vars_doors)
               /\ UNCHANGED(pin_vars)
 
-\* Unlock trunk without unlocking doors 
+\* Unlock trunk without unlocking doors
+\* this is used to open the trunk even though the car is in an armed state
 UnlockTrunk == /\ IsCarLocked
                /\ CheckPin(Trunk!Unlock, trunkUnlockMismatchCounter, UNCHANGED<<trunkState>>)
                /\ UNCHANGED(vars_doors)
                /\ UNCHANGED<<changeMismatchCounter, unlockMismatchCounter>>
 
-\* Lock trunk again if trunk was unlocked on its own 
+\* Lock trunk again if only the trunk was unlocked before
 LockTrunk == /\ AreDoorsLocked
              /\ IsTrunkUnlocked
              /\ Trunk!Lock
@@ -200,7 +217,7 @@ LockTrunk == /\ AreDoorsLocked
              /\ UNCHANGED(vars_doors)
              /\ UNCHANGED<<changeMismatchCounter, unlockMismatchCounter>>
 
-\* TODO
+\* Action combining all actions possible for the car's trunk
 TrunkActions == \/ OpenTrunk
                 \/ CloseTrunk
                 \/ LockTrunk              
@@ -210,7 +227,8 @@ TrunkActions == \/ OpenTrunk
 (* Lock Actions                                                            *)
 (***************************************************************************)
 
-\* TODO
+\* Locks the entire car (passenger area and trunk)
+\* We are resetting the mismatch counts here, since we are moving into a locked state
 LockCar == /\ IsCarUnlocked
            /\ PassengerArea!Lock
            /\ Trunk!Lock
@@ -219,7 +237,9 @@ LockCar == /\ IsCarUnlocked
            /\ trunkUnlockMismatchCounter' = 0
            /\ UNCHANGED<<passengerDoors>>
 
-\* TODO
+\* Unlocks the entire car (passenger area and trunk)
+\* This requires a pin check, since this is only possible from an armed state
+\* If the trunk was already unlocked before, ignore it in the state change
 UnlockCar == /\ AreDoorsLocked
              /\ CheckPin(
                 /\ PassengerArea!Unlock
@@ -238,7 +258,7 @@ UnlockCar == /\ AreDoorsLocked
 \* Action that allows changing the wireless key pin
 \* This is possible in an unlocked state and requires the old and the new pin
 \* to be provided
-\* If the old (= current) pin is provided wrongly for three times, a mismatch alarm
+\* If the old (= current) pin is provided incorrectly for three times, a mismatch alarm
 \* will be triggered
 SetNewPin == /\ IsCarUnlocked
              /\ CheckPin(TRUE, changeMismatchCounter, TRUE)

@@ -10,7 +10,7 @@
 (***************************************************************************)
 EXTENDS Integers, Sequences
 
-CONSTANT DoorCount                  \* Amount of the car's doors
+CONSTANT DoorCount                  \* Amount of the car's passenger doors
 ASSUME DoorCount \in {2,4}          \* DoorCount is set in the TLC
                                     \* has to either be 2 or 4 by requirement
 
@@ -25,8 +25,10 @@ vars == <<passengerDoors>>
 (* Accessible outside to ease guard usage for the module if instantiated   *)
 (***************************************************************************)
 
-AreOpen == \E pd \in passengerDoors : pd[2] = TRUE          \* guard that is true if at least one door is open
-AreClosed == \A pd \in passengerDoors : pd[2] = FALSE       \* guard that is true if all doors are closed
+\* guard that is true if at least one door is open
+AreOpen == \E pd \in passengerDoors : pd[2] = TRUE
+\* guard that is true if all doors are closed
+AreClosed == \A pd \in passengerDoors : pd[2] = FALSE
 
 (***************************************************************************)
 (* Invariants                                                              *)

@@ -65,7 +65,7 @@ VARIABLES
     sound,                      \* flag to indicate if sound is on
     armedTimer,                 \* timer that counts from ArmedDelay to 0
     alarmTimer,                 \* timer that counts from AlarmDelay to 0
-    mismatchCounter            \* tracks how many wrong pins were sent while in an armed state
+    mismatchCounter             \* tracks how many wrong pins were sent while in an armed state
 
 vars ==
     <<
@@ -130,7 +130,6 @@ Invariant == /\ TypeInvariant
 \* the car is unarmed, armed timer is set to ArmedDelay
 \* alarm indicators are off (alarm is deactivated) and alarm timer is set to AlarmDelay
 \* the mismatch counter starts at 0
-\* aux vars are initialized accordingly
 Init == /\ state = OpenAndUnlocked
         /\ isArmed = FALSE
         /\ flash = FALSE
@@ -176,7 +175,7 @@ Close_After_OpenAndLocked == /\ state  = OpenAndLocked
 
 \* Close the car from the SilentAndOpen state (after an alarm was triggered but was already deactivated)
 \* This arms the car again
-Close_After_SilentAndOpen == /\ state  = SilentAndOpen
+Close_After_SilentAndOpen == /\ state = SilentAndOpen
                              /\ state' = Armed
                              /\ isArmed' = TRUE
                              /\ UNCHANGED(alarm_vars)
@@ -184,24 +183,24 @@ Close_After_SilentAndOpen == /\ state  = SilentAndOpen
                              /\ UNCHANGED<<mismatchCounter>>
 
 \* Lock the car from the OpenAndUnlocked state to get to OpenAndLocked
-Lock_After_OpenAndUnlocked == /\ state  = OpenAndUnlocked
+Lock_After_OpenAndUnlocked == /\ state = OpenAndUnlocked
                               /\ state' = OpenAndLocked
                               /\ UNCHANGED(vars_without_state)
 
 \* Lock the car from the OpenAndLocked state to get to ClosedAndLocked
-Lock_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
+Lock_After_ClosedAndUnlocked == /\ state = ClosedAndUnlocked
                                 /\ state' = ClosedAndLocked
                                 /\ UNCHANGED(vars_without_state)
 
 \* Open the car from the ClosedAndUnlocked state to get to OpenAndUnlocked
-Open_After_ClosedAndUnlocked == /\ state  = ClosedAndUnlocked
+Open_After_ClosedAndUnlocked == /\ state = ClosedAndUnlocked
                                 /\ state' = OpenAndUnlocked
                                 /\ UNCHANGED(vars_without_state)
 
 \* Open the car from the ClosedAndLocked state to get to OpenAndLocked
 \* reset the timer to ArmedDelay, since we are not counting down anymore in this state
 \* this is set when leaving ClosedAndLocked mainly to avoid unnecessary states in TLC
-Open_After_ClosedAndLocked == /\ state  = ClosedAndLocked
+Open_After_ClosedAndLocked == /\ state = ClosedAndLocked
                               /\ state' = OpenAndLocked
                               /\ armedTimer' = ArmedDelay
                               /\ UNCHANGED(alarm_vars)
@@ -210,7 +209,7 @@ Open_After_ClosedAndLocked == /\ state  = ClosedAndLocked
 \* Open the car from an armed state
 \* this is an illegal action -> trigger alarm
 \* the alarm was triggered my an unauthorized open, so reset the mismatch counter
-Open_After_Armed == /\ state  = Armed
+Open_After_Armed == /\ state = Armed
                     /\ state' = Alarm
                     /\ isArmed' = FALSE
                     /\ mismatchCounter' = 0
@@ -220,14 +219,14 @@ Open_After_Armed == /\ state  = Armed
 \* Lock the car from the ClosedAndLocked state to get to ClosedAndUnlocked
 \* reset the timer to ArmedDelay, since we are not counting down anymore in this state
 \* this is set when leaving ClosedAndLocked mainly to avoid unnecessary states in TLC
-Unlock_After_ClosedAndLocked == /\ state  = ClosedAndLocked
+Unlock_After_ClosedAndLocked == /\ state = ClosedAndLocked
                                 /\ state' = ClosedAndUnlocked
                                 /\ armedTimer' = ArmedDelay
                                 /\ UNCHANGED(alarm_vars)
                                 /\ UNCHANGED<<isArmed, alarmTimer, mismatchCounter>>
 
 \* Unlock the car from the OpenAndLocked state to get to OpenAndUnlocked
-Unlock_After_OpenAndLocked == /\ state  = OpenAndLocked
+Unlock_After_OpenAndLocked == /\ state = OpenAndLocked
                               /\ state' = OpenAndUnlocked
                               /\ UNCHANGED(vars_without_state)
 
@@ -247,7 +246,7 @@ Unlock_After_Armed == /\ state = Armed
 \* (= reset cause of the alarm)
 \* we assume that this unlock is done via the physical method (key turned in lock) and we
 \* ignore wireless unlocks
-Unlock_After_OpenAlarm == /\ state  = Alarm
+Unlock_After_OpenAlarm == /\ state = Alarm
                           /\ mismatchCounter = 0
                           /\ state' = OpenAndUnlocked
                           /\ alarmTimer' = AlarmDelay
@@ -255,7 +254,7 @@ Unlock_After_OpenAlarm == /\ state  = Alarm
                           /\ CarAlarm!Deactivate
                           /\ UNCHANGED<<isArmed, armedTimer>>
 
-Unlock_After_MismatchAlarm == /\ state  = Alarm
+Unlock_After_MismatchAlarm == /\ state = Alarm
                               /\ mismatchCounter = MaxPinMismatch
                               /\ state' = ClosedAndUnlocked
                               /\ alarmTimer' = AlarmDelay
@@ -266,14 +265,14 @@ Unlock_After_MismatchAlarm == /\ state  = Alarm
 \* Similar to the Unlock_After_Alarm action, but puts the car into a valid
 \* state again after the alarm already turned silent, thus, the alarm was already deactivated
 \* this is only possible after an unauthorized open alarm was triggered
-Unlock_After_SilentAndOpen == /\ state  = SilentAndOpen
+Unlock_After_SilentAndOpen == /\ state = SilentAndOpen
                               /\ state' = OpenAndUnlocked
                               /\ UNCHANGED(vars_without_state)
 
 \* car transitioning from closed and unlocked into an armed state
 \* the car should also show it is armed, so the flag is set to true to indicate that
 \* the armed delay timer reached 0, so the car can be armed and the timer needs to be reset
-Arming == /\ state  = ClosedAndLocked
+Arming == /\ state = ClosedAndLocked
           /\ armedTimer = 0
           /\ SetArmed
           /\ UNCHANGED(alarm_vars)
@@ -367,37 +366,38 @@ Spec == Init /\ [][Next]_vars
 (* Verified Specification and Verified Refinement                          *)
 (***************************************************************************)
 
-IsMissmatchAlarm == mismatchCounter = MaxPinMismatch /\ state = Alarm
+\* predicate that is true, if the car reached the alarm state through a mismatch
+\* this was added in this refinement and needs to be mapped accordingly to the lower refinement
+IsMismatchAlarm == mismatchCounter = MaxPinMismatch /\ state = Alarm
 
 \* action to map the state variable value to the higher abstraction one
-StateMapping == IF IsMissmatchAlarm
-                   THEN Armed
-                   ELSE state
+StateMapping == IF IsMismatchAlarm
+                    THEN Armed
+                    ELSE state
 
 \* action to map the flash variable value to the higher abstraction one
-FlashMapping == IF IsMissmatchAlarm
-                   THEN FALSE
-                   ELSE flash
+FlashMapping == IF IsMismatchAlarm
+                    THEN FALSE
+                    ELSE flash
 
 \* action to map the sound variable value to the higher abstraction one
-SoundMapping == IF IsMissmatchAlarm
-                   THEN FALSE
-                   ELSE sound
+SoundMapping == IF IsMismatchAlarm
+                    THEN FALSE
+                    ELSE sound
 
 \* action to map the alarm timer variable value to the higher abstraction one
-AlarmTickerMapping == IF IsMissmatchAlarm
-                         THEN AlarmDelay
-                         ELSE alarmTimer
+AlarmTickerMapping == IF IsMismatchAlarm
+                          THEN AlarmDelay
+                          ELSE alarmTimer
 
-IsArmedMapping == IF IsMissmatchAlarm
-                     THEN TRUE
-                     ELSE isArmed
-
+\* action to map the is armed flag value to the higher abstraction one
+IsArmedMapping == IF IsMismatchAlarm
+                      THEN TRUE
+                      ELSE isArmed
 
 \* instance of the lower refinement
-\* the states and other vars are similar, so no mapping is needed
-CarAlarmSystem6 == INSTANCE CarAlarmSystem6 WITH
-         state <- StateMapping,
+CarAlarmSystem6 == INSTANCE CarAlarmSystem6
+    WITH state <- StateMapping,
          flash <- FlashMapping,
          sound <- SoundMapping,
          alarmTimer <- AlarmTickerMapping,
