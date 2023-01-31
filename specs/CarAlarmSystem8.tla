@@ -188,6 +188,12 @@ SetArmed == /\ state' = Armed
             /\ armedTimer' = ArmedDelay
             /\ unlockMismatchCounter' = 0
 
+\* common helper action to exit an alarm after 5 mins of being active without proper unlocking
+AlarmFinished == /\ state = Alarm
+                 /\ alarmTimer = 0
+                 /\ CarAlarm!Deactivate
+                 /\ alarmTimer' = AlarmDelay
+
 (***************************************************************************)
 (* State Actions                                                           *)
 (***************************************************************************)
@@ -306,12 +312,6 @@ Arming == /\ state = ClosedAndLocked
 (***************************************************************************)
 (* Alarm Actions                                                           *)
 (***************************************************************************)
-
-\* common helper action to exit an alarm after 5 mins of being active without proper unlocking
-AlarmFinished == /\ state = Alarm
-                 /\ alarmTimer = 0
-                 /\ CarAlarm!Deactivate
-                 /\ alarmTimer' = AlarmDelay
 
 \* action that triggers the car alarm after there were too many change pin attempts with
 \* an invalid pin (changeMismatchCounter reached MaxPinMismatch)

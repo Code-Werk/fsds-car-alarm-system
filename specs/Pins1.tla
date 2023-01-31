@@ -2,6 +2,12 @@
 
 (***************************************************************************)
 (* Module with a single refinement for pins:                               *)
+(*                                                                         *)
+(* The module represents the set of keys a car has along with their        *)
+(* respective mismatch counters for wireless unlocks and pin changes. The  *)
+(* maximum number of keys (= length of the key/counter sets) is set in the *)
+(* configuration. Each counter consists of the key index and the current   *)
+(* count of the specific mismatch type.                                    *)
 (***************************************************************************)
 
 EXTENDS Integers, FiniteSets
@@ -78,13 +84,18 @@ TypeInvariant == /\ CounterTypeInvariant(changeMismatchCounters)
 (* Actions                                                                 *)
 (***************************************************************************)
 
-\* TODO
+\* Init a counters set for all mismatch types for each key and init them with count 0
 Init == /\ changeMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
         /\ unlockMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
         /\ trunkUnlockMismatchCounters = { <<i,0>> : i \in 1..MaxPins}
 
+\* Resets the counters for a specific mismatch type to 0
 ResetCounters(counters) == counters' = { <<i,0>> : i \in 1..MaxPins}
 
+\* Action that is called to non-deterministically check if a sent pin matches
+\* and so can unlock the car or change the pin, or if the pin is incorrect
+\* It takes the action that should be executed next if the pin matches or the unchanged
+\* variables if the pin does not match and the action does not get executed
 CheckPin(action, counters, unchanged) == 
     /\ ~ IsMaxMismatch(counters)
     /\ \E b \in BOOLEAN:
@@ -96,27 +107,41 @@ CheckPin(action, counters, unchanged) ==
                                 \union {<<counter[1], counter[2]+1>>}
                  /\ unchanged
 
+\* Action that calls the CheckPin action for a change pin operation
 CheckChangeMismatchCounter(action, unchanged) == 
     /\ CheckPin(action, changeMismatchCounters, unchanged)
 
+\* Action that calls the CheckPin action for an unlock operation
 CheckUnlockMismatchCounter(action, unchanged) == 
     /\ CheckPin(action, unlockMismatchCounters, unchanged)
 
+\* Action that calls the CheckPin action for an unlock trunk operation
 CheckTrunkUnlockMismatchCounters(action, unchanged) == 
     /\ CheckPin(action, trunkUnlockMismatchCounters, unchanged)
 
+\* Resets the change pin mismatch counters for all keys
 ResetChangeCounters == /\ ResetCounters(changeMismatchCounters)
+
+\* Resets the unlock mismatch counters for all keys
 ResetUnlockCounters == /\ ResetCounters(unlockMismatchCounters)
+
+\* Resets the unlock trunk mismatch counters for all keys
 ResetTrunkCounters == /\ ResetCounters(trunkUnlockMismatchCounters)
 
+\* Action that calls the CheckPin action for a change pin operation
+\* used if no variables change
 CheckChangeMismatch == 
     /\ CheckChangeMismatchCounter(TRUE, TRUE)
     /\ UNCHANGED<<unlockMismatchCounters, trunkUnlockMismatchCounters>>
 
+\* Action that calls the CheckPin action for an unlock operation
+\* used if no variables change
 CheckUnlockMismatch == 
     /\ CheckUnlockMismatchCounter(TRUE, TRUE)
     /\ UNCHANGED<<changeMismatchCounters, trunkUnlockMismatchCounters>>
 
+\* Action that calls the CheckPin action for an unlock trunk operation
+\* used if no variables change
 CheckTrunkUnlockMismatch == 
     /\ CheckTrunkUnlockMismatchCounters(TRUE, TRUE)
     /\ UNCHANGED<<unlockMismatchCounters, changeMismatchCounters>>

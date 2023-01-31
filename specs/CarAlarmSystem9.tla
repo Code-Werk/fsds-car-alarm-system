@@ -121,6 +121,15 @@ TypeInvariant == /\ alarmSystemState \in ALARM_SYSTEM_STATES
                  /\ Car!TypeInvariant
                  /\ CarAlarm!TypeInvariant
 
+\* the armed timer should be reset to the ArmedDelay when reaching this state
+\* if the car is in an armed state indicate that by setting the isArmed flag
+\* the car state should be ClosedAndLocked
+\* the trunk can be unlocked in the armed state
+ArmedInvariant == /\ armedTimer = ArmedDelay 
+                  /\ isArmed = TRUE
+                  /\ passengerAreaState = ClosedAndLocked
+                  /\ ~(Car!IsTrunkOpen /\ Car!IsTrunkLocked)
+
 \* if the alarm is on, sound and flash should be on during sound duration
 \* afterwards, only the flash should be on and the sound off
 \* if the alarm is on and was triggered by any mismatch, all doors should still be closed
@@ -137,16 +146,6 @@ AlarmInvariant == /\ flash = TRUE
                   /\ IF alarmTimer >= AlarmDelay - SoundDuration
                          THEN sound = TRUE
                          ELSE sound = FALSE
-
-\* the armed timer should be reset to the ArmedDelay when reaching this state
-\* if the car is in an armed state indicate that by setting the isArmed flag
-\* the car state should be ClosedAndLocked
-\* the trunk can be unlocked in the armed state
-ArmedInvariant == /\ armedTimer = ArmedDelay 
-                  /\ isArmed = TRUE
-                  /\ passengerAreaState = ClosedAndLocked
-                  /\ ~(Car!IsTrunkOpen /\ Car!IsTrunkLocked)
-                  
 
 \* in an alarm state the AlarmInvariants should hold, in an armed state the ArmedInvariant
 \* the safety invariant for the doors needs to hold for the car alarm system safety invariant to hold
@@ -212,7 +211,7 @@ AlarmFinished == /\ alarmSystemState = Alarm
                  /\ alarmTimer' = AlarmDelay
 
 (***************************************************************************)
-(* Doors Open Close Actions                                                *)
+(* Car Actions                                                             *)
 (***************************************************************************)
 
 \* Action that calls the car module's next action if the alarm system is unarmed
@@ -245,13 +244,13 @@ ArmedTrunkActions == /\ alarmSystemState = Armed
                      /\ \/ /\ Car!IsTrunkUnlocked
                            /\ \/ Car!OpenTrunk
                               \/ Car!CloseTrunk
-                              \/ /\ Car!IsTrunkClosed 
+                              \/ /\ Car!IsTrunkClosed
                                  /\ Car!LockTrunk
                            /\ UNCHANGED<<trunkUnlockMismatchCounter>>
                         \/ /\ Car!IsTrunkLocked
                            /\ CheckPin(
-                              Car!UnlockTrunk, 
-                              trunkUnlockMismatchCounter, 
+                              Car!UnlockTrunk,
+                              trunkUnlockMismatchCounter,
                               UNCHANGED<<trunkState>>)
                            /\ UNCHANGED<<passengerAreaState, passengerDoors>>
                  /\ UNCHANGED(alarm_vars)
@@ -288,7 +287,7 @@ SetNewPin == /\ Car!IsCarUnlocked
                 trunkUnlockMismatchCounter>>
 
 (***************************************************************************)
-(* Open After Armed Actions                                                *)
+(* State Actions                                                           *)
 (***************************************************************************)
 
 \* car transitioning from closed and unlocked into an armed state
@@ -333,13 +332,9 @@ Close_After_SilentAndOpen == /\ alarmSystemState = SilentAndOpen
                                     THEN SetArmed
                                     ELSE /\ UNCHANGED(alarm_vars)
                                          /\ UNCHANGED<<alarmSystemState, armedTimer, isArmed>>
-                             /\ UNCHANGED(pin_vars)
                              /\ UNCHANGED(alarm_vars)
+                             /\ UNCHANGED(pin_vars)
                              /\ UNCHANGED<<alarmTimer>>
-
-(***************************************************************************)
-(* State Actions                                                           *)
-(***************************************************************************)
 
 \* Unlock the car from an armed state to get into an unarmed state
 \* so the car can be arbitrarily unlocked/locked and opened/closed
@@ -459,9 +454,9 @@ AlarmFinished_TrunkUnlockMismatch == /\ AlarmFinished
 \* and not (correctly) unlocked in the meantime, so we go to SilentAndOpen since the
 \* alarm was due to an unauthorized open
 AlarmFinished_Open == /\ AlarmFinished
-                      /\ changeMismatchCounter = 0 
-                      /\ unlockMismatchCounter = 0 
-                      /\ trunkUnlockMismatchCounter = 0 
+                      /\ changeMismatchCounter = 0
+                      /\ unlockMismatchCounter = 0
+                      /\ trunkUnlockMismatchCounter = 0
                       /\ alarmSystemState' = SilentAndOpen
                       /\ UNCHANGED(car_vars)
                       /\ UNCHANGED(pin_vars)
@@ -562,7 +557,7 @@ ArmingTicker == /\ alarmSystemState = Unarmed
                 /\ Car!IsCarLocked
                 /\ armedTimer > 0
                 /\ \E d \in { n \in ArmedRange : n < armedTimer}:
-                    armedTimer' = d 
+                    armedTimer' = d
                 /\ UNCHANGED(alarm_vars)
                 /\ UNCHANGED(car_vars)
                 /\ UNCHANGED(pin_vars)
@@ -626,7 +621,7 @@ CarState == IF Car!IsCarClosed
                          ELSE ClosedAndUnlocked
                 ELSE IF Car!IsCarLocked
                          THEN OpenAndLocked
-                         ELSE OpenAndUnlocked  
+                         ELSE OpenAndUnlocked
 
 \* predicate that is true, if the car reached a mismatch alarm through a trunk unlock mismatch
 \* this was added in this refinement and needs to be mapped accordingly to the lower refinement
@@ -642,7 +637,7 @@ StateMapping == IF IsTrunkUnlockMismatchAlarm
                     THEN Armed
                     ELSE IF alarmSystemState /= Unarmed
                              THEN alarmSystemState
-                             ELSE CarState         
+                             ELSE CarState
 
 \* action to map the flash variable value to the higher abstraction one
 FlashMapping == IF IsTrunkUnlockMismatchAlarm
